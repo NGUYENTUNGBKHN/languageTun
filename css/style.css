@@ -301,7 +301,7 @@ header {
     flex-shrink: 0;
 }
 
-/* VOCAB COUNTER */
+/* VOCABULARY COUNTER */
 .vocab-stats {
     margin-top: auto;
     background: var(--surface2);
@@ -544,7 +544,7 @@ header {
     cursor: not-allowed;
 }
 
-/* TYPING */
+/* TYPING INDICATOR */
 .typing-indicator {
     display: flex;
     gap: 4px;
@@ -581,7 +581,7 @@ header {
     }
 }
 
-/* TEST PANEL */
+/* QUIZ PANEL */
 .test-panel {
     flex: 1;
     padding: 2rem;
@@ -793,7 +793,7 @@ header {
     max-width: 320px;
 }
 
-/* CHIP suggestions */
+/* CHIP SUGGESTIONS */
 .chips {
     display: flex;
     flex-wrap: wrap;
@@ -817,61 +817,56 @@ header {
     color: var(--text);
 }
 
-/* VOICE CHAT */
-.mic-btn {
-    background: var(--surface2);
-    border: 1px solid var(--border2);
-    border-radius: 10px;
-    padding: 10px 14px;
-    font-size: 13px;
-    color: var(--muted);
-    cursor: pointer;
-    font-family: inherit;
-    transition: all 0.2s;
-    height: 42px;
-    white-space: nowrap;
+
+/* VOCABULARY PANEL */
+.vocab-panel {
+    flex: 1;
+    padding: 2rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
 }
 
-.mic-btn:hover {
-    border-color: var(--accent-en);
-    color: var(--text);
-}
-
-.mic-btn.listening {
-    background: rgba(232, 96, 122, 0.2);
-    border-color: var(--accent-jp);
-    color: var(--accent-jp);
-    animation: pulse 1.5s ease-in-out infinite;
-}
-
-@keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.6; }
-}
-
-.speak-btn {
-    display: inline-flex;
+.vocab-header {
+    display: flex;
+    justify-content: space-between;
     align-items: center;
-    gap: 4px;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 4px 10px;
-    font-size: 12px;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.vocab-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.vocab-table thead th {
+    font-size: 11px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
     color: var(--muted);
-    cursor: pointer;
-    margin-top: 8px;
-    transition: all 0.15s;
+    padding: 8px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
 }
 
-.speak-btn:hover {
-    border-color: var(--accent-en);
-    color: var(--accent-en);
+.vocab-table tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background 0.12s;
 }
 
-.speak-btn.speaking {
-    background: rgba(79, 201, 122, 0.15);
-    border-color: var(--accent-test);
+.vocab-table tbody tr:hover {
+    background: var(--surface2);
+}
+
+.vocab-table td {
+    padding: 10px 12px;
+    vertical-align: middle;
+}
+
+.nav-btn.active.vocab {
+    background: var(--glow-test);
     color: var(--accent-test);
-    animation: pulse 1s ease-in-out infinite;
 }

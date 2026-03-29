@@ -1,341 +1,340 @@
 let currentModel = 'gemini';
-let vocabLog = { en: [], jp: [] };
-let bookContext = {
-  en: "Sách: English Grammar in Use - tập trung vào ngữ pháp thực hành, ví dụ thực tế.",
-  jp: "Sách: Minna no Nihongo N5 - từ vựng và ngữ pháp JLPT N5 cơ bản."
-};
-const histories = { english: [], japanese: [], translate: [] };
+let vocabLog = [];      // local cache
+const histories = { translate: [] };
 
-const STORAGE_KEY = 'linguaagent_config';
+const STORAGE_KEY = 'linguaagent_dict_config';
+const SB_KEY      = 'linguaagent_supabase';
 
-// Voice Chat globals
-let ttsSynth = window.speechSynthesis;
-let isSpeaking = false;
-let recognition = null;
-let isListening = false;
-let currentSpeakingTab = null;
-let autoSpeak = true;
+// ─────────────────────────────────────────────────────────────
+// SYSTEM PROMPT
+// ─────────────────────────────────────────────────────────────
+const DICT_SYSTEM = `Bạn là trợ lý học tiếng Anh cho người Việt Nam. Nhiệm vụ của bạn:
 
-// Detect language for TTS
-detectLanguage = (text) => {
-  if (/[\u3040-\u309F]/.test(text)) return 'ja-JP';
-  if (/[\u4E00-\u9FAF]/.test(text)) return 'ja-JP';
-  if (/[\u3400-\u4DBF]/.test(text)) return 'ja-JP';
-  if (/[a-zA-Z]/.test(text)) return 'en-US';
-  return 'vi-VN';
-};
+1. Khi người dùng nhập một từ tiếng Anh:
+   - Dịch sang tiếng Việt
+   - Cung cấp cách đọc phiên âm IPA (ví dụ: /ɪˈfɛm.ər.əl/)
+   - Phân loại từ loại (danh từ, động từ, tính từ...)
+   - Đưa ra 2–3 mẫu câu sử dụng từ đó trong tiếng Anh giao tiếp hoặc văn viết
+   - Đưa ra từ đồng nghĩa (synonyms) và trái nghĩa (antonyms) nếu có
+   - Thêm ghi chú ngữ pháp liên quan nếu cần thiết
+   - Nếu liên quan, lồng ghép ví dụ với các từ đã học trước đó trong cuộc trò chuyện
 
-// Speak text using Web Speech API
-function speak(text, tab) {
-  if (!ttsSynth) return;
-  ttsSynth.cancel();
+2. Khi người dùng nhập một từ tiếng Việt:
+   - Dịch sang tiếng Anh
+   - Cung cấp cách đọc phiên âm IPA của từ tiếng Anh
+   - Đưa ra mẫu câu sử dụng từ tiếng Anh đó
+   - Đưa ra từ đồng nghĩa và trái nghĩa trong tiếng Anh
 
-  const cleanText = text.replace(/\[VOCAB.*?\]/g, '').replace(/[*_`#]/g, '');
-  const sentences = cleanText.split(/[.!?。！？\n]+/).filter(s => s.trim().length > 10);
-  const toSpeak = sentences.slice(0, 3).join('. ');
+3. Nếu người dùng sai chính tả: tự động sửa lại và tra từ đúng, ghi chú "Bạn có thể muốn hỏi: [từ đúng]".
 
-  const utter = new SpeechSynthesisUtterance(toSpeak);
-  utter.lang = detectLanguage(toSpeak);
-  utter.rate = 0.9;
-  utter.pitch = 1;
+4. Định dạng câu trả lời rõ ràng, sử dụng emoji phù hợp, dễ đọc.
 
-  utter.onstart = () => {
-    isSpeaking = true;
-    updateSpeakBtn(tab, true);
-  };
+5. Cuối mỗi câu trả lời, thêm dòng: [VOCAB:từ tiếng Anh:nghĩa tiếng Việt] để lưu vào danh sách từ vựng.
 
-  utter.onend = () => {
-    isSpeaking = false;
-    updateSpeakBtn(tab, false);
-  };
+Trả lời bằng tiếng Việt, chỉ phần ví dụ câu mới dùng tiếng Anh.`;
 
-  ttsSynth.speak(utter);
+// ─────────────────────────────────────────────────────────────
+// SUPABASE
+// ─────────────────────────────────────────────────────────────
+let sbUrl = '';
+let sbKey = '';
+
+function getSupabaseConfig() {
+  try {
+    const s = localStorage.getItem(SB_KEY);
+    if (s) { const c = JSON.parse(s); sbUrl = c.url || ''; sbKey = c.key || ''; }
+  } catch(e) {}
 }
 
-function stopSpeaking() {
-  if (ttsSynth) {
-    ttsSynth.cancel();
-    isSpeaking = false;
-    updateSpeakBtn(currentSpeakingTab, false);
+function saveSupabase() {
+  sbUrl = document.getElementById('supabaseUrl').value.trim().replace(/\/$/, '');
+  sbKey = document.getElementById('supabaseKey').value.trim();
+  if (!sbUrl || !sbKey) { setSupabaseStatus('⚠️ Vui lòng nhập đủ URL và Key', 'warn'); return; }
+  localStorage.setItem(SB_KEY, JSON.stringify({ url: sbUrl, key: sbKey }));
+  testSupabase();
+}
+
+async function testSupabase() {
+  setSupabaseStatus('🔄 Đang kiểm tra...', 'muted');
+  try {
+    const res = await sbFetch('GET', '?limit=1');
+    if (res.ok) {
+      setSupabaseStatus('✅ Đã kết nối Supabase!', 'ok');
+      document.getElementById('dbStatusRow').style.display = 'flex';
+      syncLocalToCloud();
+    } else {
+      const d = await res.json();
+      setSupabaseStatus('❌ Lỗi: ' + (d.message || d.hint || res.status), 'err');
+    }
+  } catch(e) {
+    setSupabaseStatus('❌ ' + e.message, 'err');
   }
 }
 
-function updateSpeakBtn(tab, active) {
-  document.querySelectorAll('.speak-btn').forEach(btn => {
-    btn.classList.toggle('speaking', active);
-    btn.innerHTML = active ? '🔊 Đang phát...' : '🔊 Nghe';
-  });
+function setSupabaseStatus(msg, type) {
+  const el = document.getElementById('supabaseStatus');
+  const colors = { ok: 'var(--accent-test)', err: 'var(--accent-jp)', warn: '#f7c94f', muted: 'var(--muted)' };
+  el.textContent = msg;
+  el.style.color = colors[type] || 'var(--muted)';
 }
 
-// Speech Recognition - Voice Input
-function initSpeechRecognition() {
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechRecognition) {
-    console.warn('Browser does not support speech recognition');
-    return null;
-  }
-
-  const rec = new SpeechRecognition();
-  rec.continuous = false;
-  rec.interimResults = true;
-  rec.maxAlternatives = 1;
-
-  return rec;
+function sbFetch(method, query, body) {
+  const opts = {
+    method,
+    headers: {
+      'apikey': sbKey,
+      'Authorization': 'Bearer ' + sbKey,
+      'Content-Type': 'application/json',
+      'Prefer': method === 'POST' ? 'resolution=ignore-duplicates' : ''
+    }
+  };
+  if (body) opts.body = JSON.stringify(body);
+  return fetch(`${sbUrl}/rest/v1/vocabulary${query}`, opts);
 }
 
-function startVoiceInput(tab) {
-  if (!recognition) recognition = initSpeechRecognition();
-  if (!recognition) {
-    alert('Trình duyệt không hỗ trợ nhận diện giọng nói. Vui lòng dùng Chrome hoặc Edge.');
+async function saveWordToCloud(word, meaning) {
+  if (!sbUrl || !sbKey) return;
+  try {
+    await sbFetch('POST', '', { word, meaning });
+    refreshCloudCount();
+  } catch(e) { console.warn('Cloud save failed:', e); }
+}
+
+async function syncLocalToCloud() {
+  if (!sbUrl || !sbKey || vocabLog.length === 0) return;
+  try {
+    const rows = vocabLog.map(v => ({ word: v.word, meaning: v.meaning }));
+    await sbFetch('POST', '', rows);
+    refreshCloudCount();
+  } catch(e) { console.warn('Sync failed:', e); }
+}
+
+async function loadFromCloud() {
+  if (!sbUrl || !sbKey) return;
+  try {
+    const res = await sbFetch('GET', '?order=created_at.desc&limit=500');
+    if (!res.ok) return;
+    const data = await res.json();
+    // Merge cloud into local (cloud is source of truth)
+    data.forEach(row => {
+      if (!vocabLog.find(v => v.word === row.word)) {
+        vocabLog.push({ word: row.word, meaning: row.meaning, date: row.created_at });
+      }
+    });
+    document.getElementById('enCount').textContent = vocabLog.length;
+    saveLocalConfig();
+    renderVocabList();
+    refreshCloudCount(data.length);
+  } catch(e) { console.warn('Cloud load failed:', e); }
+}
+
+async function deleteWordFromCloud(word) {
+  if (!sbUrl || !sbKey) return;
+  try {
+    await sbFetch('DELETE', `?word=eq.${encodeURIComponent(word)}`);
+    refreshCloudCount();
+  } catch(e) { console.warn('Cloud delete failed:', e); }
+}
+
+async function refreshCloudCount(count) {
+  if (!sbUrl || !sbKey) return;
+  if (count !== undefined) {
+    document.getElementById('dbCount').textContent = count;
+    document.getElementById('dbStatusRow').style.display = 'flex';
     return;
   }
-
-  const input = document.getElementById('input-' + tab);
-  const micBtn = document.getElementById('mic-btn-' + tab);
-
-  recognition.lang = tab === 'japanese' ? 'ja-JP' : (tab === 'english' ? 'en-US' : 'vi-VN');
-
-  recognition.onstart = () => {
-    isListening = true;
-    if (micBtn) {
-      micBtn.classList.add('listening');
-      micBtn.innerHTML = '🎙️ Đang nghe...';
+  try {
+    const res = await sbFetch('GET', '?select=id');
+    if (res.ok) {
+      const d = await res.json();
+      document.getElementById('dbCount').textContent = d.length;
+      document.getElementById('dbStatusRow').style.display = 'flex';
     }
-    input.placeholder = 'Đang nghe...';
-  };
-
-  recognition.onresult = (e) => {
-    const transcript = Array.from(e.results)
-      .map(r => r[0].transcript)
-      .join('');
-    input.value = transcript;
-  };
-
-  recognition.onerror = (e) => {
-    console.error('Speech recognition error:', e.error);
-    isListening = false;
-    if (micBtn) {
-      micBtn.classList.remove('listening');
-      micBtn.innerHTML = '🎙️ Nói';
-    }
-    input.placeholder = 'Hỏi gì về Tiếng Anh...';
-  };
-
-  recognition.onend = () => {
-    isListening = false;
-    if (micBtn) {
-      micBtn.classList.remove('listening');
-      micBtn.innerHTML = '🎙️ Nói';
-    }
-    input.placeholder = 'Hỏi gì về Tiếng Anh...';
-    if (input.value.trim()) {
-      sendMessage(tab);
-    }
-  };
-
-  recognition.start();
+  } catch(e) {}
 }
 
-function stopVoiceInput() {
-  if (recognition && isListening) {
-    recognition.stop();
-  }
-}
-
-function saveConfig() {
-  const config = {
+// ─────────────────────────────────────────────────────────────
+// LOCAL STORAGE
+// ─────────────────────────────────────────────────────────────
+function saveLocalConfig() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({
     apiKey: getApiKey(),
     model: currentModel,
-    vocabLog: vocabLog,
-    bookContext: bookContext,
-    autoSpeak: autoSpeak
-  };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+    vocabLog
+  }));
 }
 
-function loadConfig() {
+function loadLocalConfig() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
-      const config = JSON.parse(saved);
-      if (config.apiKey) {
-        document.getElementById('apiKey').value = config.apiKey;
-      }
-      if (config.model) {
-        setModel(config.model);
-      }
-      if (config.vocabLog) {
-        vocabLog = config.vocabLog;
-        document.getElementById('enCount').textContent = vocabLog.en.length;
-        document.getElementById('jpCount').textContent = vocabLog.jp.length;
-      }
-      if (config.bookContext) {
-        bookContext = config.bookContext;
-      }
-      if (config.autoSpeak !== undefined) {
-        autoSpeak = config.autoSpeak;
-        const autoSpeakCheckbox = document.getElementById('autoSpeak');
-        if (autoSpeakCheckbox) autoSpeakCheckbox.checked = autoSpeak;
-      }
-      return true;
+      const c = JSON.parse(saved);
+      if (c.apiKey) document.getElementById('apiKey').value = c.apiKey;
+      if (c.model) setModel(c.model);
+      if (c.vocabLog) { vocabLog = c.vocabLog; document.getElementById('enCount').textContent = vocabLog.length; }
     }
-  } catch (e) {
-    console.error('Failed to load config:', e);
-  }
-  return false;
+  } catch(e) {}
 }
 
 function exportToJSON() {
-  const config = {
-    apiKey: getApiKey(),
-    model: currentModel,
-    vocabLog: vocabLog,
-    bookContext: bookContext,
-    autoSpeak: autoSpeak,
-    exportedAt: new Date().toISOString()
-  };
-  const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
+  const blob = new Blob([JSON.stringify({ apiKey: getApiKey(), model: currentModel, vocabLog, exportedAt: new Date().toISOString() }, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
-  a.href = url;
-  a.download = `linguaagent_backup_${new Date().toISOString().split('T')[0]}.json`;
+  a.href = URL.createObjectURL(blob);
+  a.download = `lingua_backup_${new Date().toISOString().split('T')[0]}.json`;
   a.click();
-  URL.revokeObjectURL(url);
 }
 
 function importFromJSON(file) {
   const reader = new FileReader();
-  reader.onload = (e) => {
+  reader.onload = e => {
     try {
-      const config = JSON.parse(e.target.result);
-      if (config.apiKey) {
-        document.getElementById('apiKey').value = config.apiKey;
-      }
-      if (config.model) {
-        setModel(config.model);
-      }
-      if (config.vocabLog) {
-        vocabLog = config.vocabLog;
-        document.getElementById('enCount').textContent = vocabLog.en.length;
-        document.getElementById('jpCount').textContent = vocabLog.jp.length;
-      }
-      if (config.bookContext) {
-        bookContext = config.bookContext;
-      }
-      if (config.autoSpeak !== undefined) {
-        autoSpeak = config.autoSpeak;
-        const autoSpeakCheckbox = document.getElementById('autoSpeak');
-        if (autoSpeakCheckbox) autoSpeakCheckbox.checked = autoSpeak;
-      }
-      saveConfig();
-      alert('Đã nhập dữ liệu thành công!');
-    } catch (err) {
-      alert('Lỗi đọc file JSON: ' + err.message);
-    }
+      const c = JSON.parse(e.target.result);
+      if (c.apiKey) document.getElementById('apiKey').value = c.apiKey;
+      if (c.model) setModel(c.model);
+      if (c.vocabLog) { vocabLog = c.vocabLog; document.getElementById('enCount').textContent = vocabLog.length; }
+      saveLocalConfig(); renderVocabList();
+      alert('Nhập dữ liệu thành công!');
+    } catch(err) { alert('Lỗi: ' + err.message); }
   };
   reader.readAsText(file);
 }
 
-const SYSTEMS = {
-  english: (ctx) => `Bạn là gia sư Tiếng Anh chuyên nghiệp, dạy học viên người Việt. ${ctx}
-Luôn:
-- Giải thích bằng tiếng Việt, ví dụ bằng tiếng Anh
-- In đậm từ/cụm từ quan trọng bằng **từ**
-- Cho ví dụ câu thực tế
-- Khi dạy từ vựng mới, format: **word** /phiên âm/ - nghĩa - ví dụ
-- Kết thúc với: [VOCAB:word:nghĩa] cho mỗi từ mới quan trọng`,
+// ─────────────────────────────────────────────────────────────
+// VOCAB LIST UI
+// ─────────────────────────────────────────────────────────────
+function renderVocabList() {
+  const wrap = document.getElementById('vocabTableWrap');
+  const q = (document.getElementById('vocabSearch')?.value || '').toLowerCase();
+  const filtered = vocabLog.filter(v => v.word.toLowerCase().includes(q) || (v.meaning||'').toLowerCase().includes(q));
 
-  japanese: (ctx) => `Bạn là gia sư Tiếng Nhật, dạy học viên người Việt. ${ctx}
-Luôn:
-- Giải thích bằng tiếng Việt
-- Viết tiếng Nhật kèm furigana: 漢字（かんじ）
-- Format từ vựng: **từ** (đọc) - nghĩa - ví dụ câu
-- Cho ví dụ câu kèm dịch tiếng Việt
-- Kết thúc với [VOCAB_JP:từ:đọc:nghĩa] cho mỗi từ mới quan trọng`,
+  if (filtered.length === 0) {
+    wrap.innerHTML = `<div class="empty-state" style="flex:none;padding:3rem 0;">
+      <div class="empty-icon">📭</div>
+      <div class="empty-title">${q ? 'Không tìm thấy' : 'Chưa có từ nào'}</div>
+      <div class="empty-sub">${q ? 'Thử từ khóa khác.' : 'Hãy tra từ trong Dictionary.'}</div>
+    </div>`;
+    return;
+  }
 
-  translate: () => `Bạn là từ điển thông minh Anh-Nhật-Việt. Khi được hỏi một từ, hãy cung cấp:
-1. Từ gốc và phiên âm/cách đọc
-2. Loại từ (danh từ, động từ, tính từ...)
-3. Nghĩa chính bằng tiếng Việt
-4. Nghĩa bổ sung nếu có
-5. 3 ví dụ câu thực tế kèm dịch tiếng Việt
-6. Từ đồng nghĩa / trái nghĩa nếu có
-7. Ghi chú văn hóa nếu từ tiếng Nhật
-Kết thúc với [VOCAB:từ:nghĩa] hoặc [VOCAB_JP:từ:đọc:nghĩa]`
-};
+  let html = `<table class="vocab-table">
+    <thead><tr><th>#</th><th>Từ tiếng Anh</th><th>Nghĩa tiếng Việt</th><th>Ngày học</th><th></th></tr></thead><tbody>`;
+  filtered.slice().reverse().forEach((v, i) => {
+    const date = v.date ? new Date(v.date).toLocaleDateString('vi-VN') : '—';
+    html += `<tr>
+      <td style="color:var(--muted);font-size:12px;">${filtered.length - i}</td>
+      <td><strong style="color:var(--accent-trans)">${escapeHtml(v.word)}</strong></td>
+      <td>${escapeHtml(v.meaning || '')}</td>
+      <td style="color:var(--muted);font-size:12px;">${date}</td>
+      <td><button onclick="deleteWord('${escapeHtml(v.word)}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:2px 6px;" title="Xóa">✕</button></td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
+}
 
+function deleteWord(word) {
+  vocabLog = vocabLog.filter(v => v.word !== word);
+  document.getElementById('enCount').textContent = vocabLog.length;
+  saveLocalConfig();
+  renderVocabList();
+  deleteWordFromCloud(word);
+}
+
+function exportVocabCSV() {
+  if (vocabLog.length === 0) { alert('Chưa có từ nào để export!'); return; }
+  const rows = [['Word', 'Meaning', 'Date']].concat(
+    vocabLog.map(v => [v.word, v.meaning || '', v.date ? new Date(v.date).toLocaleDateString('vi-VN') : ''])
+  );
+  const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,\uFEFF' + encodeURIComponent(csv);
+  a.download = `vocabulary_${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+}
+
+// ─────────────────────────────────────────────────────────────
+// SUPABASE GUIDE
+// ─────────────────────────────────────────────────────────────
+function showSupabaseGuide() {
+  const el = document.getElementById('supabaseGuide');
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+function copySQL() {
+  const sql = document.getElementById('sqlCode').textContent;
+  navigator.clipboard.writeText(sql).then(() => alert('Đã copy SQL!'));
+}
+
+// ─────────────────────────────────────────────────────────────
+// MODEL SELECTION
+// ─────────────────────────────────────────────────────────────
 const MODEL_INFO = {
-  gemini: { label: 'Gemini 2.5 Flash', placeholder: 'AIza... (Google AI Studio - Miễn phí)', hint: 'Lấy key miễn phí tại aistudio.google.com' },
-  gpt:    { label: 'GPT-4o mini',       placeholder: 'sk-... (OpenAI API Key)', hint: '' },
-  claude: { label: 'Claude Sonnet',     placeholder: 'sk-ant-... (Anthropic API Key)', hint: '' }
+  gemini: { label: '✨ Gemini 2.5 Flash', placeholder: 'AIza... (Google AI Studio - Miễn phí)' },
+  gpt:    { label: '🤖 GPT-4o mini',      placeholder: 'sk-... (OpenAI API Key)' },
+  claude: { label: '⚡ Claude Sonnet',    placeholder: 'sk-ant-... (Anthropic API Key)' }
 };
 
 function setModel(m) {
   currentModel = m;
   ['gemini','gpt','claude'].forEach(id => {
-    const card = document.getElementById('card-' + id);
-    if (card) card.className = 'model-card' + (m === id ? ' selected-' + id : '');
+    const c = document.getElementById('card-' + id);
+    if (c) c.className = 'model-card' + (m === id ? ' selected-' + id : '');
   });
   const info = MODEL_INFO[m];
   const input = document.getElementById('apiKey');
   if (input) { input.placeholder = info.placeholder; input.value = ''; }
   const hints = {
-    gemini: '✨ <strong>Gemini miễn phí hoàn toàn</strong> — Lấy key tại <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com</a> → Đăng nhập Google → Get API Key',
-    gpt: '🤖 Lấy key tại <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com/api-keys</a> (cần tài khoản trả phí)',
-    claude: '⚡ Lấy key tại <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> (cần tài khoản trả phí)'
+    gemini: '✨ <strong>Gemini hoàn toàn miễn phí</strong> — Lấy key tại <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com</a>',
+    gpt: '🤖 Lấy key tại <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com</a> (trả phí)',
+    claude: '⚡ Lấy key tại <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> (trả phí)'
   };
   const hint = document.getElementById('keyHint');
   if (hint) hint.innerHTML = hints[m];
-  const hm = document.getElementById('headerModel');
-  if (hm) hm.textContent = info.label;
-  updateStatus(false, 'Chưa kết nối');
+  document.getElementById('headerModel').textContent = info.label;
+  updateStatus(false, 'Not connected');
 }
 
 function saveKey() {
   const key = getApiKey();
-  if (!key) { updateStatus(false, 'Nhập key trước!'); return; }
-  const btn = document.getElementById('saveBtn');
-  // validate
+  if (!key) { updateStatus(false, 'Vui lòng nhập API key!'); return; }
   let valid = false;
   if (currentModel === 'gemini' && key.startsWith('AIza') && key.length > 20) valid = true;
   if (currentModel === 'gpt' && key.startsWith('sk-') && !key.startsWith('sk-ant-') && key.length > 20) valid = true;
   if (currentModel === 'claude' && key.startsWith('sk-ant-')) valid = true;
-  if (!valid) { updateStatus(false, 'Key không đúng format'); return; }
+  if (!valid) { updateStatus(false, 'Key không hợp lệ'); return; }
   const labels = { gemini: '✓ Gemini sẵn sàng', gpt: '✓ GPT sẵn sàng', claude: '✓ Claude sẵn sàng' };
   updateStatus(true, labels[currentModel]);
+  const btn = document.getElementById('saveBtn');
   btn.textContent = '✓ Đã lưu!'; btn.classList.add('saved');
-  setTimeout(() => { btn.textContent = 'Lưu & Kết nối'; btn.classList.remove('saved'); }, 2000);
-  saveConfig();
+  setTimeout(() => { btn.textContent = 'Save & Connect'; btn.classList.remove('saved'); }, 2000);
+  saveLocalConfig();
 }
 
 function getApiKey() { return document.getElementById('apiKey').value.trim(); }
 
 function updateStatus(ok, msg) {
-  const el = document.getElementById('apiStatus');
-  el.textContent = msg;
-  el.className = 'api-status' + (ok ? '' : ' error');
+  ['apiStatus','apiStatusSettings'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.textContent = msg; el.className = 'api-status' + (ok ? '' : ' error'); }
+  });
 }
 
+// ─────────────────────────────────────────────────────────────
+// API CALL
+// ─────────────────────────────────────────────────────────────
 async function callAPI(system, messages) {
   const key = getApiKey();
-  if (!key) throw new Error('Chưa nhập API Key! Lấy key miễn phí tại aistudio.google.com');
+  if (!key) throw new Error('Chưa có API Key! Vào Settings để cài đặt.');
 
   if (currentModel === 'gemini') {
-    const geminiContents = messages.map(m => ({
-      role: m.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: m.content }]
-    }));
     const res = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           system_instruction: { parts: [{ text: system }] },
-          contents: geminiContents,
+          contents: messages.map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] })),
           generationConfig: { maxOutputTokens: 1000 }
-        })
-      }
+        }) }
     );
     const data = await res.json();
     if (data.error) throw new Error(data.error.message);
@@ -345,8 +344,7 @@ async function callAPI(system, messages) {
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
-      body: JSON.stringify({ model: 'gpt-4o-mini', max_tokens: 1000,
-        messages: [{ role: 'system', content: system }, ...messages] })
+      body: JSON.stringify({ model: 'gpt-4o-mini', max_tokens: 1000, messages: [{ role: 'system', content: system }, ...messages] })
     });
     const data = await res.json();
     if (data.error) throw new Error(data.error.message);
@@ -365,155 +363,112 @@ async function callAPI(system, messages) {
   }
 }
 
+// ─────────────────────────────────────────────────────────────
+// TAB / CHAT
+// ─────────────────────────────────────────────────────────────
 function switchTab(tab) {
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active', 'trans', 'vocab'));
   document.getElementById('tab-' + tab).classList.add('active');
-  
-  if (event && event.currentTarget) {
-    event.currentTarget.classList.add('active');
-    const classes = { english:'en', japanese:'jp', translate:'trans', test:'test' };
-    if (classes[tab]) event.currentTarget.classList.add(classes[tab]);
+  const btn = document.getElementById('nav-' + tab);
+  if (btn) {
+    btn.classList.add('active');
+    if (tab === 'translate') btn.classList.add('trans');
+    if (tab === 'vocab') btn.classList.add('vocab');
   }
+  if (tab === 'vocab') renderVocabList();
 }
 
-function handleKey(e, tab) {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(tab); }
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
 }
 
-function quickSend(tab, text) {
-  document.getElementById('input-' + tab).value = text;
-  sendMessage(tab);
+function quickSend(text) {
+  document.getElementById('input-translate').value = text;
+  sendMessage();
 }
 
-function appendMsg(tab, role, text) {
-  const container = document.getElementById('chat-' + tab);
+function escapeHtml(text) {
+  return String(text).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function formatMarkdown(text) {
+  return text
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    .replace(/`(.*?)`/g, '<code style="background:var(--surface2);padding:1px 6px;border-radius:4px;font-size:13px">$1</code>')
+    .replace(/\n/g, '<br>');
+}
+
+function appendMsg(role, text) {
+  const container = document.getElementById('chat-translate');
   const empty = container.querySelector('.empty-state');
   if (empty) empty.remove();
 
-  const avatars = { english: ['EN','agent-en'], japanese: ['日','agent-jp'], translate: ['Dic','agent-trans'] };
-  const avInfo = role === 'user' ? ['You','user'] : (avatars[tab] || ['AI','agent-en']);
-
+  const avInfo = role === 'user' ? ['Bạn','user'] : ['Dic','agent-trans'];
   const msgDiv = document.createElement('div');
   msgDiv.className = 'msg ' + (role === 'user' ? 'user' : '');
-
-  const cleanText = text.replace(/\[VOCAB.*?\]/g, '');
-
-  // Add speak button for assistant messages
-  const speakBtn = role === 'assistant' ? `
-    <button class="speak-btn" onclick="speak(this.dataset.text, '${tab}')" data-text="${cleanText.replace(/"/g, '&quot;')}">
-      🔊 Nghe
-    </button>
-  ` : '';
-
+  const cleanText = text.replace(/\[VOCAB.*?\]/g, '').trim();
   msgDiv.innerHTML = `
     <div class="avatar ${avInfo[1]}">${avInfo[0]}</div>
-    <div class="bubble ${role === 'user' ? 'user' : ''}">
-      ${cleanText}
-      ${speakBtn}
-    </div>
-  `;
+    <div class="bubble ${role === 'user' ? 'user' : ''}">${role === 'assistant' ? formatMarkdown(cleanText) : escapeHtml(cleanText)}</div>`;
   container.appendChild(msgDiv);
   container.scrollTop = container.scrollHeight;
 
-  // Extract vocab
   if (role === 'assistant') {
     const matches = [...text.matchAll(/\[VOCAB:(.*?):(.*?)\]/g)];
     matches.forEach(m => {
-      if (!vocabLog.en.find(x => x.word === m[1])) vocabLog.en.push({ word: m[1], meaning: m[2], date: new Date() });
+      const word = m[1].trim(), meaning = m[2].trim();
+      if (word && !vocabLog.find(v => v.word === word)) {
+        const entry = { word, meaning, date: new Date().toISOString() };
+        vocabLog.push(entry);
+        saveWordToCloud(word, meaning);
+      }
     });
-    const matchesJp = [...text.matchAll(/\[VOCAB_JP:(.*?):(.*?):(.*?)\]/g)];
-    matchesJp.forEach(m => {
-      if (!vocabLog.jp.find(x => x.word === m[1])) vocabLog.jp.push({ word: m[1], reading: m[2], meaning: m[3], date: new Date() });
-    });
-    document.getElementById('enCount').textContent = vocabLog.en.length;
-    document.getElementById('jpCount').textContent = vocabLog.jp.length;
-    saveConfig();
-
-    // Auto speak if enabled
-    if (autoSpeak && !isSpeaking) {
-      currentSpeakingTab = tab;
-      speak(cleanText, tab);
-    }
+    document.getElementById('enCount').textContent = vocabLog.length;
+    saveLocalConfig();
   }
 }
 
-async function sendMessage(tab) {
-  const input = document.getElementById('input-' + tab);
+async function sendMessage() {
+  const input = document.getElementById('input-translate');
   const text = input.value.trim();
   if (!text) return;
-
-  appendMsg(tab, 'user', text);
+  appendMsg('user', text);
   input.value = '';
-  
+
   const indicator = document.createElement('div');
   indicator.className = 'typing-indicator';
   indicator.innerHTML = '<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>';
-  document.getElementById('chat-' + tab).appendChild(indicator);
+  const container = document.getElementById('chat-translate');
+  container.appendChild(indicator);
+  container.scrollTop = container.scrollHeight;
 
   try {
-    const ctx = tab === 'english' ? bookContext.en : bookContext.jp;
-    const response = await callAPI(SYSTEMS[tab](ctx), histories[tab].concat({ role: 'user', content: text }));
+    const msgs = histories.translate.concat({ role: 'user', content: text });
+    const response = await callAPI(DICT_SYSTEM, msgs);
     indicator.remove();
-    appendMsg(tab, 'assistant', response);
-    histories[tab].push({ role: 'user', content: text });
-    histories[tab].push({ role: 'assistant', content: response });
-    if (histories[tab].length > 10) histories[tab].splice(0, 2);
-  } catch (err) {
+    appendMsg('assistant', response);
+    histories.translate.push({ role: 'user', content: text }, { role: 'assistant', content: response });
+    if (histories.translate.length > 20) histories.translate.splice(0, 2);
+  } catch(err) {
     indicator.remove();
-    appendMsg(tab, 'assistant', "❌ Lỗi: " + err.message);
+    appendMsg('assistant', '❌ Lỗi: ' + err.message);
   }
 }
 
-function generateTest() {
-  const total = vocabLog.en.length + vocabLog.jp.length;
-  if (total < 3) { alert("Bạn cần học ít nhất 3 từ mới để tạo bài test!"); return; }
-  
-  const content = document.getElementById('test-content');
-  content.innerHTML = '<div class="empty-state"><div class="empty-title">Đang tạo bài test...</div></div>';
-  
-  setTimeout(() => {
-    content.innerHTML = '';
-    const all = [
-      ...vocabLog.en.map(x => ({ ...x, lang: 'en' })),
-      ...vocabLog.jp.map(x => ({ ...x, lang: 'jp' }))
-    ].sort(() => 0.5 - Math.random()).slice(0, 5);
-    
-    all.forEach((q, i) => {
-      const card = document.createElement('div');
-      card.className = 'question-card';
-      const questionText = q.lang === 'en' ? `Từ **${q.word}** có nghĩa là gì?` : `Từ **${q.word}** (${q.reading}) nghĩa là gì?`;
-      card.innerHTML = `
-        <div class="q-num">CÂU HỎI ${i+1}</div>
-        <div class="q-text">${questionText}</div>
-        <div class="options">
-          <button class="option-btn" onclick="checkAns(this, true)">${q.meaning}</button>
-          <button class="option-btn" onclick="checkAns(this, false)">Nghĩa sai A</button>
-          <button class="option-btn" onclick="checkAns(this, false)">Nghĩa sai B</button>
-        </div>
-      `;
-      content.appendChild(card);
-    });
-  }, 1000);
-}
-
-function checkAns(btn, isCorrect) {
-  const opts = btn.parentElement.querySelectorAll('.option-btn');
-  opts.forEach(o => o.disabled = true);
-  btn.className = 'option-btn ' + (isCorrect ? 'correct' : 'wrong');
-}
-
-function uploadBook(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-  alert("Đã nhận sách: " + file.name + ". AI sẽ ưu tiên dạy dựa trên nội dung này.");
-  const item = document.createElement('div');
-  item.className = 'book-item';
-  item.innerHTML = `<span>📖 ${file.name}</span> <span class="book-lang en">NEW</span>`;
-  document.getElementById('bookList').appendChild(item);
-}
-
-// Init: Load saved config on page load
+// ─────────────────────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
-  loadConfig();
+  loadLocalConfig();
+  getSupabaseConfig();
+  // Load supabase credentials into settings UI
+  if (sbUrl) document.getElementById('supabaseUrl').value = sbUrl;
+  if (sbKey) document.getElementById('supabaseKey').value = sbKey;
+  if (sbUrl && sbKey) {
+    setSupabaseStatus('✅ Đã cấu hình', 'ok');
+    loadFromCloud();
+  }
 });

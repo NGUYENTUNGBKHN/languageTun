@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LinguaAgent — Học Tiếng Anh & Nhật</title>
+<title>LinguaAgent — English Dictionary</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Playfair+Display:wght@700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
 </head>
@@ -13,170 +13,90 @@
   <div class="logo">Lingua<span>Agent</span></div>
   <div style="display:flex;align-items:center;gap:10px;">
     <span style="font-size:12px;color:var(--muted)" id="headerModel">✨ Gemini 2.5 Flash</span>
-    <span class="api-status error" id="apiStatus">Chưa cài đặt</span>
-    <button onclick="switchTab('settings');document.querySelector('.nav-btn.settings').click()" style="background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:5px 12px;color:var(--muted);font-size:13px;cursor:pointer;font-family:inherit;">⚙️ Cài đặt</button>
+    <span class="api-status error" id="apiStatus">Not configured</span>
+    <button onclick="switchTab('settings')" style="background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:5px 12px;color:var(--muted);font-size:13px;cursor:pointer;font-family:inherit;">⚙️ Settings</button>
   </div>
 </header>
 
 <div class="app">
   <nav class="sidebar">
-    <div class="sidebar-label">Học tập</div>
-    <button class="nav-btn en active" onclick="switchTab('english')">
-      <div class="nav-dot" style="background:#4f8ef7"></div> 🇬🇧 Tiếng Anh
+    <div class="sidebar-label">Tools</div>
+    <button class="nav-btn trans active" id="nav-translate" onclick="switchTab('translate')">
+      <div class="nav-dot" style="background:#c07af7"></div> 🔤 Dictionary
     </button>
-    <button class="nav-btn jp" onclick="switchTab('japanese')">
-      <div class="nav-dot" style="background:#e8607a"></div> 🇯🇵 Tiếng Nhật
+    <button class="nav-btn vocab" id="nav-vocab" onclick="switchTab('vocab')">
+      <div class="nav-dot" style="background:#4fc97a"></div> 📚 Vocabulary
     </button>
-
-    <div class="sidebar-label">Công cụ</div>
-    <button class="nav-btn trans" onclick="switchTab('translate')">
-      <div class="nav-dot" style="background:#c07af7"></div> 🔤 Dịch từ vựng
-    </button>
-    <button class="nav-btn test" onclick="switchTab('test')">
-      <div class="nav-dot" style="background:#4fc97a"></div> 📝 Bài kiểm tra
-    </button>
-    <button class="nav-btn" onclick="switchTab('books')">
-      <div class="nav-dot" style="background:#7a8090"></div> 📚 Sách học
-    </button>
-    <button class="nav-btn settings" onclick="switchTab('settings')">
-      <div class="nav-dot" style="background:#7a8090"></div> ⚙️ Cài đặt
+    <button class="nav-btn settings" id="nav-settings" onclick="switchTab('settings')">
+      <div class="nav-dot" style="background:#7a8090"></div> ⚙️ Settings
     </button>
 
     <div class="vocab-stats">
-      <div class="vocab-stats-title">Từ vựng đã học</div>
-      <div class="vocab-stats-title">Từ vựng đã học</div>
+      <div class="vocab-stats-title">Words learned</div>
       <div class="vocab-row">
-        <span>🇬🇧 Tiếng Anh</span>
-        <span class="vocab-count" id="enCount" style="color:var(--accent-en)">0</span>
+        <span>📖 Total</span>
+        <span class="vocab-count" id="enCount" style="color:var(--accent-trans)">0</span>
       </div>
-      <div class="vocab-row">
-        <span>🇯🇵 Tiếng Nhật</span>
-        <span class="vocab-count" id="jpCount" style="color:var(--accent-jp)">0</span>
+      <div class="vocab-row" id="dbStatusRow" style="display:none">
+        <span>☁️ Cloud</span>
+        <span class="vocab-count" id="dbCount" style="color:var(--accent-test)">—</span>
       </div>
     </div>
   </nav>
 
   <main class="main">
 
-    <div class="tab-panel active" id="tab-english">
-      <div class="chat-container" id="chat-english">
-        <div class="empty-state">
-          <div class="empty-icon">🇬🇧</div>
-          <div class="empty-title">Gia sư Tiếng Anh AI</div>
-          <div class="empty-sub">Hỏi về ngữ pháp, từ vựng, cách dùng từ, hoặc học theo sách của bạn. Tôi sẽ giải thích chi tiết bằng tiếng Việt.</div>
-        </div>
-      </div>
-      <div class="input-area">
-        <div class="chips" id="chips-english">
-          <span class="chip" onclick="quickSend('english','Dạy tôi Present Perfect')">Present Perfect</span>
-          <span class="chip" onclick="quickSend('english','Sự khác nhau giữa make và do')">make vs do</span>
-          <span class="chip" onclick="quickSend('english','Phrasal verbs phổ biến nhất')">Phrasal verbs</span>
-          <span class="chip" onclick="quickSend('english','Cách viết email chuyên nghiệp')">Email văn phòng</span>
-          <span class="chip" onclick="quickSend('english','IELTS Writing tips')">IELTS tips</span>
-        </div>
-        <div class="input-row">
-          <button class="mic-btn" id="mic-btn-english" onclick="startVoiceInput('english')">🎙️ Nói</button>
-          <textarea class="msg-input" id="input-english" placeholder="Hỏi gì về Tiếng Anh..." rows="1" onkeydown="handleKey(event,'english')"></textarea>
-          <button class="send-btn en" onclick="sendMessage('english')">Gửi ↑</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="tab-panel" id="tab-japanese">
-      <div class="chat-container" id="chat-japanese">
-        <div class="empty-state">
-          <div class="empty-icon">🇯🇵</div>
-          <div class="empty-title">Gia sư Tiếng Nhật AI</div>
-          <div class="empty-sub">Học Hiragana, Katakana, Kanji, ngữ pháp N5-N1. Tôi sẽ giải thích kèm furigana và ví dụ thực tế.</div>
-        </div>
-      </div>
-      <div class="input-area">
-        <div class="chips">
-          <span class="chip" onclick="quickSend('japanese','Dạy tôi Hiragana cơ bản')">Hiragana</span>
-          <span class="chip" onclick="quickSend('japanese','Ngữ pháp て-form')">て-form</span>
-          <span class="chip" onclick="quickSend('japanese','JLPT N5 grammar patterns')">N5 Grammar</span>
-          <span class="chip" onclick="quickSend('japanese','Cách đọc kanji phổ biến')">Kanji cơ bản</span>
-          <span class="chip" onclick="quickSend('japanese','Keigo - kính ngữ tiếng Nhật')">Keigo</span>
-        </div>
-        <div class="input-row">
-          <button class="mic-btn" id="mic-btn-japanese" onclick="startVoiceInput('japanese')">🎙️ Nói</button>
-          <textarea class="msg-input" id="input-japanese" placeholder="Hỏi gì về Tiếng Nhật..." rows="1" onkeydown="handleKey(event,'japanese')"></textarea>
-          <button class="send-btn jp" onclick="sendMessage('japanese')">Gửi ↑</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="tab-panel" id="tab-translate">
+    <!-- DICTIONARY TAB -->
+    <div class="tab-panel active" id="tab-translate">
       <div class="chat-container" id="chat-translate">
         <div class="empty-state">
           <div class="empty-icon">🔤</div>
-          <div class="empty-title">Từ điển thông minh</div>
-          <div class="empty-sub">Nhập từ tiếng Anh hoặc tiếng Nhật để xem nghĩa, cách đọc, ví dụ, và lưu vào kho từ vựng của bạn.</div>
+          <div class="empty-title">English ↔ Vietnamese Dictionary</div>
+          <div class="empty-sub">Nhập một từ tiếng Anh hoặc tiếng Việt để xem nghĩa, cách đọc, mẫu câu, từ đồng nghĩa và trái nghĩa.</div>
         </div>
       </div>
       <div class="input-area">
         <div class="chips">
-          <span class="chip" onclick="quickSend('translate','ephemeral')">ephemeral</span>
-          <span class="chip" onclick="quickSend('translate','憂鬱 (ゆううつ)')">憂鬱</span>
-          <span class="chip" onclick="quickSend('translate','serendipity')">serendipity</span>
-          <span class="chip" onclick="quickSend('translate','木漏れ日 (こomorebi)')">木漏れ日</span>
+          <span class="chip" onclick="quickSend('ephemeral')">ephemeral</span>
+          <span class="chip" onclick="quickSend('serendipity')">serendipity</span>
+          <span class="chip" onclick="quickSend('resilience')">resilience</span>
+          <span class="chip" onclick="quickSend('ambiguous')">ambiguous</span>
+          <span class="chip" onclick="quickSend('procrastinate')">procrastinate</span>
         </div>
         <div class="input-row">
-          <button class="mic-btn" id="mic-btn-translate" onclick="startVoiceInput('translate')">🎙️ Nói</button>
-          <textarea class="msg-input" id="input-translate" placeholder="Nhập từ cần tra..." rows="1" onkeydown="handleKey(event,'translate')"></textarea>
-          <button class="send-btn trans" onclick="sendMessage('translate')">Tra ↑</button>
+          <textarea class="msg-input" id="input-translate" placeholder="Nhập từ cần tra... (Enter để tra cứu)" rows="1" onkeydown="handleKey(event)"></textarea>
+          <button class="send-btn trans" onclick="sendMessage()">Tra từ ↑</button>
         </div>
       </div>
     </div>
 
-    <div class="tab-panel" id="tab-test">
-      <div class="test-panel">
-        <div class="test-header">
-          <div class="test-title">📝 Bài kiểm tra hôm nay</div>
-          <button class="gen-test-btn" id="genTestBtn" onclick="generateTest()">✨ Tạo bài test</button>
+    <!-- VOCABULARY TAB -->
+    <div class="tab-panel" id="tab-vocab">
+      <div class="vocab-panel">
+        <div class="vocab-header">
+          <div class="test-title">📚 Vocabulary List</div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <input type="text" id="vocabSearch" placeholder="🔍 Tìm từ..." oninput="renderVocabList()" style="background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:6px 12px;color:var(--text);font-size:13px;font-family:inherit;outline:none;width:160px;">
+            <button class="gen-test-btn" onclick="exportVocabCSV()">📥 Export CSV</button>
+          </div>
         </div>
-        <div id="test-content">
-          <div class="empty-state" style="flex:none; padding:3rem 0;">
-            <div class="empty-icon">📊</div>
-            <div class="empty-title">Chưa có bài test</div>
-            <div class="empty-sub">Nhấn "Tạo bài test" để AI tổng hợp từ vựng bạn đã học hôm nay thành bài kiểm tra tương tác.</div>
+        <div id="vocabTableWrap">
+          <div class="empty-state" style="flex:none;padding:3rem 0;">
+            <div class="empty-icon">📭</div>
+            <div class="empty-title">Chưa có từ nào</div>
+            <div class="empty-sub">Hãy tra từ trong Dictionary để từ vựng tự động được lưu tại đây.</div>
           </div>
         </div>
       </div>
     </div>
 
-    <div class="tab-panel" id="tab-books">
-      <div class="test-panel">
-        <div class="test-header">
-          <div class="test-title">📚 Sách học</div>
-          <label for="bookUpload" style="cursor:pointer">
-            <div class="gen-test-btn" style="cursor:pointer">+ Thêm sách</div>
-            <input type="file" id="bookUpload" accept=".txt,.pdf,.md" style="display:none" onchange="uploadBook(event)">
-          </label>
-        </div>
-        <div class="upload-zone" onclick="document.getElementById('bookUpload').click()">
-          📂 Kéo thả hoặc click để upload sách (TXT, PDF, MD)<br>
-          <span style="font-size:12px">Agent sẽ học từ nội dung sách của bạn</span>
-        </div>
-        <div id="bookList" style="display:flex; flex-direction:column; gap:8px;">
-          <div class="book-item">
-            <span>📖 English Grammar in Use (mặc định)</span>
-            <span class="book-lang en">EN</span>
-          </div>
-          <div class="book-item">
-            <span>📖 Minna no Nihongo N5 (mặc định)</span>
-            <span class="book-lang jp">JP</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
+    <!-- SETTINGS TAB -->
     <div class="tab-panel" id="tab-settings">
       <div class="settings-panel">
-        <div style="font-family:'Playfair Display',serif;font-size:1.4rem;margin-bottom:1.5rem;">⚙️ Cài đặt</div>
+        <div style="font-family:'Playfair Display',serif;font-size:1.4rem;margin-bottom:1.5rem;">⚙️ Settings</div>
 
         <div class="settings-section">
-          <div class="settings-section-title">Chọn AI Model</div>
+          <div class="settings-section-title">Choose AI Model</div>
           <div class="model-grid">
             <div class="model-card selected-gemini" id="card-gemini" onclick="setModel('gemini')">
               <div class="model-card-icon">✨</div>
@@ -198,59 +118,65 @@
         </div>
 
         <div class="settings-section">
-          <div class="settings-section-title">API Key</div>
+          <div class="settings-section-title">API Key (AI Model)</div>
           <div class="key-hint" id="keyHint">
-            ✨ <strong>Gemini miễn phí hoàn toàn</strong> — Lấy key tại
+            ✨ <strong>Gemini hoàn toàn miễn phí</strong> — Lấy key tại
             <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com</a>
-            → Đăng nhập Google → Get API Key
           </div>
           <input type="password" class="settings-input" id="apiKey" placeholder="AIza... (Google AI Studio Key)" />
           <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-            <button class="save-btn" id="saveBtn" onclick="saveKey()">Lưu & Kết nối</button>
-            <span class="api-status error" id="apiStatus">Chưa kết nối</span>
+            <button class="save-btn" id="saveBtn" onclick="saveKey()">Save &amp; Connect</button>
+            <span class="api-status error" id="apiStatusSettings">Not connected</span>
+          </div>
+        </div>
+
+        <div class="settings-section" style="border-color: rgba(79,201,122,0.3);">
+          <div class="settings-section-title" style="color:var(--accent-test)">☁️ Supabase Database (Miễn phí)</div>
+          <div class="key-hint" style="margin-bottom:12px;">
+            Lưu từ vựng vĩnh viễn lên cloud — miễn phí, không giới hạn.
+            <a href="#" onclick="showSupabaseGuide();return false;" style="color:var(--accent-test);">Xem hướng dẫn tạo →</a>
+          </div>
+
+          <div id="supabaseGuide" style="display:none; background:var(--surface2); border-radius:10px; padding:14px; margin-bottom:14px; font-size:13px; line-height:2; color:var(--muted);">
+            <strong style="color:var(--text);">Tạo Supabase miễn phí (5 phút):</strong><br>
+            1. Vào <a href="https://supabase.com" target="_blank" style="color:var(--accent-test)">supabase.com</a> → <strong style="color:var(--text)">Start your project</strong><br>
+            2. Đăng nhập bằng GitHub hoặc Google<br>
+            3. Nhấn <strong style="color:var(--text)">New project</strong> → đặt tên → chọn region <strong style="color:var(--text)">Southeast Asia</strong><br>
+            4. Vào <strong style="color:var(--text)">Project Settings → API</strong> → copy <strong style="color:var(--text)">Project URL</strong> và <strong style="color:var(--text)">anon public key</strong><br>
+            5. Vào <strong style="color:var(--text)">SQL Editor</strong> → chạy SQL sau để tạo bảng:<br>
+            <code id="sqlCode" style="display:block;background:var(--bg);padding:10px;border-radius:6px;margin-top:8px;font-size:11px;color:#4fc97a;line-height:1.8;white-space:pre;">CREATE TABLE vocabulary (
+  id bigint generated always as identity primary key,
+  word text not null,
+  meaning text,
+  created_at timestamptz default now()
+);
+ALTER TABLE vocabulary ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all" ON vocabulary FOR ALL USING (true) WITH CHECK (true);</code>
+            <button onclick="copySQL()" style="margin-top:8px;background:var(--surface);border:1px solid var(--border2);border-radius:6px;padding:4px 12px;color:var(--muted);font-size:12px;cursor:pointer;font-family:inherit;">📋 Copy SQL</button>
+          </div>
+
+          <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Project URL</label>
+          <input type="text" class="settings-input" id="supabaseUrl" placeholder="https://xxxxxxxxxxxx.supabase.co" style="margin-bottom:10px;" />
+          <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Anon Public Key</label>
+          <input type="password" class="settings-input" id="supabaseKey" placeholder="eyJhbGciO..." />
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:8px;">
+            <button class="save-btn" onclick="saveSupabase()" style="background:var(--accent-test);color:#0d0f14;">💾 Save &amp; Test</button>
+            <span id="supabaseStatus" style="font-size:12px;color:var(--muted);">Chưa cấu hình</span>
           </div>
         </div>
 
         <div class="settings-section">
-          <div class="settings-section-title">Sao lưu & Khôi phục</div>
+          <div class="settings-section-title">Backup &amp; Restore</div>
           <div style="display:flex;gap:10px;flex-wrap:wrap;">
-            <button class="save-btn" onclick="exportToJSON()" style="background:var(--accent-en)">📥 Xuất JSON</button>
+            <button class="save-btn" onclick="exportToJSON()" style="background:var(--accent-trans)">📥 Export JSON</button>
             <label style="cursor:pointer">
-              <div class="save-btn" style="background:var(--accent-jp)">📤 Nhập JSON</div>
+              <div class="save-btn" style="background:var(--accent-jp)">📤 Import JSON</div>
               <input type="file" accept=".json" style="display:none" onchange="importFromJSON(this.files[0]);this.value=''">
             </label>
           </div>
-          <div style="font-size:12px;color:var(--muted);margin-top:8px;">
-            Lưu API key, từ vựng đã học, và cài đặt vào file JSON
-          </div>
+          <div style="font-size:12px;color:var(--muted);margin-top:8px;">Lưu API key và từ vựng vào file JSON</div>
         </div>
 
-        <div class="settings-section">
-          <div class="settings-section-title">🎙️ Cài đặt giọng nói</div>
-          <div style="display:flex;flex-direction:column;gap:12px;">
-            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-              <input type="checkbox" id="autoSpeak" checked onchange="autoSpeak = this.checked">
-              <span>Tự động đọc câu trả lời của AI</span>
-            </label>
-            <div style="font-size:12px;color:var(--muted);">
-              Nhấn nút 🔊 để nghe lại, hoặc nhấn 🎙️ để nói thay vì gõ
-            </div>
-            <div style="display:flex;gap:10px;margin-top:8px;">
-              <button class="save-btn" onclick="stopSpeaking()" style="background:var(--accent-jp)">⏹️ Dừng đọc</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="settings-section">
-          <div class="settings-section-title" style="margin-bottom:6px;">Hướng dẫn lấy key miễn phí</div>
-          <div style="font-size:13px;line-height:1.9;color:var(--muted);">
-            <div>1. Vào <a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--accent-en)">aistudio.google.com/apikey</a></div>
-            <div>2. Đăng nhập tài khoản Google</div>
-            <div>3. Nhấn <strong style="color:var(--text)">Create API Key</strong></div>
-            <div>4. Copy key (bắt đầu bằng <code style="background:var(--surface2);padding:1px 6px;border-radius:4px;font-size:12px">AIza...</code>)</div>
-            <div>5. Dán vào ô trên → Lưu & Kết nối</div>
-          </div>
-        </div>
       </div>
     </div>
 
