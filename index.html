@@ -24,8 +24,11 @@
     <button class="nav-btn trans active" id="nav-translate" onclick="switchTab('translate')">
       <div class="nav-dot" style="background:#c07af7"></div> 🔤 Dictionary
     </button>
-    <button class="nav-btn vocab" id="nav-vocab" onclick="switchTab('vocab')">
+    <button class="nav-btn vocab-nav" id="nav-vocab" onclick="switchTab('vocab')">
       <div class="nav-dot" style="background:#4fc97a"></div> 📚 Vocabulary
+    </button>
+    <button class="nav-btn flash-nav" id="nav-flashcard" onclick="switchTab('flashcard')">
+      <div class="nav-dot" style="background:#f7c94f"></div> 🃏 Flashcards
     </button>
     <button class="nav-btn settings" id="nav-settings" onclick="switchTab('settings')">
       <div class="nav-dot" style="background:#7a8090"></div> ⚙️ Settings
@@ -76,15 +79,89 @@
         <div class="vocab-header">
           <div class="test-title">📚 Vocabulary List</div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-            <input type="text" id="vocabSearch" placeholder="🔍 Tìm từ..." oninput="renderVocabList()" style="background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:6px 12px;color:var(--text);font-size:13px;font-family:inherit;outline:none;width:160px;">
-            <button class="gen-test-btn" onclick="exportVocabCSV()">📥 Export CSV</button>
+            <input type="text" id="vocabSearch" placeholder="🔍 Tìm từ..." oninput="renderVocabList()"
+              style="background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:6px 12px;color:var(--text);font-size:13px;font-family:inherit;outline:none;width:160px;">
+            <button class="gen-test-btn" onclick="exportVocabCSV()">📥 CSV</button>
+            <button class="gen-test-btn" onclick="switchTab('flashcard')" style="background:rgba(247,201,79,0.12);color:#f7c94f;border-color:rgba(247,201,79,0.3);">🃏 Ôn tập</button>
           </div>
         </div>
         <div id="vocabTableWrap">
           <div class="empty-state" style="flex:none;padding:3rem 0;">
             <div class="empty-icon">📭</div>
             <div class="empty-title">Chưa có từ nào</div>
-            <div class="empty-sub">Hãy tra từ trong Dictionary để từ vựng tự động được lưu tại đây.</div>
+            <div class="empty-sub">Hãy tra từ trong Dictionary để từ vựng tự động lưu tại đây.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FLASHCARD TAB -->
+    <div class="tab-panel" id="tab-flashcard">
+      <div class="flashcard-panel">
+        <div class="fc-header">
+          <div class="test-title">🃏 Flashcards</div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <span id="fc-progress" style="font-size:13px;color:var(--muted);">— / —</span>
+            <button class="gen-test-btn" onclick="startFlashcards(true)">🔀 Shuffle</button>
+            <button class="gen-test-btn" onclick="startFlashcards(false)" style="background:rgba(192,122,247,0.12);color:var(--accent-trans);border-color:rgba(192,122,247,0.3);">↺ Bắt đầu lại</button>
+          </div>
+        </div>
+        <div id="fc-empty" class="empty-state" style="flex:1;">
+          <div class="empty-icon">🃏</div>
+          <div class="empty-title">Chưa có từ để ôn tập</div>
+          <div class="empty-sub">Hãy tra ít nhất 1 từ trong Dictionary trước.</div>
+        </div>
+        <div id="fc-main" style="display:none;flex:1;flex-direction:column;align-items:center;justify-content:center;gap:2rem;padding:2rem;">
+          <div class="fc-card-wrap" onclick="flipCard()">
+            <div class="fc-card" id="fc-card">
+              <div class="fc-front">
+                <div class="fc-word" id="fc-word">—</div>
+                <div class="fc-hint">Nhấn để xem nghĩa</div>
+              </div>
+              <div class="fc-back">
+                <div class="fc-meaning" id="fc-meaning">—</div>
+                <div class="fc-back-details">
+                  <div class="fc-detail-row" id="fc-example">
+                    <span class="fc-detail-label">💬</span>
+                    <span class="fc-detail-val example-text" id="fc-example-val"></span>
+                  </div>
+                  <div class="fc-detail-row" id="fc-syn">
+                    <span class="fc-detail-label">🔗</span>
+                    <span class="fc-detail-val syn-text" id="fc-syn-val"></span>
+                  </div>
+                  <div class="fc-detail-row" id="fc-ant">
+                    <span class="fc-detail-label">↔️</span>
+                    <span class="fc-detail-val ant-text" id="fc-ant-val"></span>
+                  </div>
+                </div>
+                <div class="fc-hint" style="margin-top:6px;">Nhấn lại để lật</div>
+              </div>
+            </div>
+          </div>
+          <div class="fc-actions" id="fc-actions" style="display:none;">
+            <button class="fc-btn wrong" onclick="fcAnswer(false)">✗ Chưa nhớ</button>
+            <button class="fc-btn correct" onclick="fcAnswer(true)">✓ Đã nhớ</button>
+          </div>
+          <div id="fc-hint-reveal" style="color:var(--muted);font-size:13px;display:none;">
+            Nhấn vào thẻ để xem nghĩa trước khi đánh giá
+          </div>
+        </div>
+        <div id="fc-results" style="display:none;flex:1;flex-direction:column;align-items:center;justify-content:center;gap:1.5rem;padding:2rem;text-align:center;">
+          <div style="font-size:3rem;">🎉</div>
+          <div style="font-family:'Playfair Display',serif;font-size:1.5rem;">Hoàn thành!</div>
+          <div class="fc-score-row">
+            <div class="fc-score-box correct-box">
+              <div class="fc-score-num" id="fc-correct-count">0</div>
+              <div class="fc-score-label">Đã nhớ ✓</div>
+            </div>
+            <div class="fc-score-box wrong-box">
+              <div class="fc-score-num" id="fc-wrong-count">0</div>
+              <div class="fc-score-label">Chưa nhớ ✗</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;">
+            <button class="gen-test-btn" onclick="startFlashcards(true)" style="padding:10px 24px;">🔀 Ôn lại tất cả</button>
+            <button class="gen-test-btn" onclick="reviewWrong()" id="fc-retry-wrong-btn" style="background:rgba(232,96,122,0.12);color:var(--accent-jp);border-color:rgba(232,96,122,0.3);padding:10px 24px;">✗ Ôn từ chưa nhớ</button>
           </div>
         </div>
       </div>
@@ -95,8 +172,9 @@
       <div class="settings-panel">
         <div style="font-family:'Playfair Display',serif;font-size:1.4rem;margin-bottom:1.5rem;">⚙️ Settings</div>
 
+        <!-- MODEL SELECTOR -->
         <div class="settings-section">
-          <div class="settings-section-title">Choose AI Model</div>
+          <div class="settings-section-title">Chọn AI Model đang dùng</div>
           <div class="model-grid">
             <div class="model-card selected-gemini" id="card-gemini" onclick="setModel('gemini')">
               <div class="model-card-icon">✨</div>
@@ -115,56 +193,60 @@
               <div class="model-card-sub">Anthropic</div>
             </div>
           </div>
-        </div>
-
-        <div class="settings-section">
-          <div class="settings-section-title">API Key (AI Model)</div>
-          <div class="key-hint" id="keyHint">
-            ✨ <strong>Gemini hoàn toàn miễn phí</strong> — Lấy key tại
-            <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com</a>
-          </div>
-          <input type="password" class="settings-input" id="apiKey" placeholder="AIza... (Google AI Studio Key)" />
-          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-            <button class="save-btn" id="saveBtn" onclick="saveKey()">Save &amp; Connect</button>
-            <span class="api-status error" id="apiStatusSettings">Not connected</span>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;">
+            <span id="apiStatusSettings" class="api-status error">Not connected</span>
           </div>
         </div>
 
-        <div class="settings-section" style="border-color: rgba(79,201,122,0.3);">
-          <div class="settings-section-title" style="color:var(--accent-test)">☁️ Supabase Database (Miễn phí)</div>
-          <div class="key-hint" style="margin-bottom:12px;">
-            Lưu từ vựng vĩnh viễn lên cloud — miễn phí, không giới hạn.
-            <a href="#" onclick="showSupabaseGuide();return false;" style="color:var(--accent-test);">Xem hướng dẫn tạo →</a>
+        <!-- API KEYS — all 3 platforms -->
+        <div class="settings-section" style="border-color:rgba(192,122,247,0.3);">
+          <div class="settings-section-title" style="color:var(--accent-trans)">🔑 API Keys — lưu tự động lên cloud</div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.7;">
+            Nhập key cho nền tảng bạn muốn dùng. Keys được mã hóa và lưu trên Supabase của bạn — không cần nhập lại mỗi lần mở app.
           </div>
 
-          <div id="supabaseGuide" style="display:none; background:var(--surface2); border-radius:10px; padding:14px; margin-bottom:14px; font-size:13px; line-height:2; color:var(--muted);">
-            <strong style="color:var(--text);">Tạo Supabase miễn phí (5 phút):</strong><br>
-            1. Vào <a href="https://supabase.com" target="_blank" style="color:var(--accent-test)">supabase.com</a> → <strong style="color:var(--text)">Start your project</strong><br>
-            2. Đăng nhập bằng GitHub hoặc Google<br>
-            3. Nhấn <strong style="color:var(--text)">New project</strong> → đặt tên → chọn region <strong style="color:var(--text)">Southeast Asia</strong><br>
-            4. Vào <strong style="color:var(--text)">Project Settings → API</strong> → copy <strong style="color:var(--text)">Project URL</strong> và <strong style="color:var(--text)">anon public key</strong><br>
-            5. Vào <strong style="color:var(--text)">SQL Editor</strong> → chạy SQL sau để tạo bảng:<br>
-            <code id="sqlCode" style="display:block;background:var(--bg);padding:10px;border-radius:6px;margin-top:8px;font-size:11px;color:#4fc97a;line-height:1.8;white-space:pre;">CREATE TABLE vocabulary (
-  id bigint generated always as identity primary key,
-  word text not null,
-  meaning text,
-  created_at timestamptz default now()
-);
-ALTER TABLE vocabulary ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow all" ON vocabulary FOR ALL USING (true) WITH CHECK (true);</code>
-            <button onclick="copySQL()" style="margin-top:8px;background:var(--surface);border:1px solid var(--border2);border-radius:6px;padding:4px 12px;color:var(--muted);font-size:12px;cursor:pointer;font-family:inherit;">📋 Copy SQL</button>
+          <!-- Gemini -->
+          <div class="key-row">
+            <div class="key-row-label">
+              <span class="key-platform-icon">✨</span>
+              <div>
+                <div class="key-platform-name">Gemini <span class="model-card-badge" style="vertical-align:middle;">FREE</span></div>
+                <a href="https://aistudio.google.com/apikey" target="_blank" class="key-link">aistudio.google.com →</a>
+              </div>
+            </div>
+            <input type="password" class="settings-input key-input" id="key-gemini" placeholder="AIza...">
           </div>
 
-          <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Project URL</label>
-          <input type="text" class="settings-input" id="supabaseUrl" placeholder="https://xxxxxxxxxxxx.supabase.co" style="margin-bottom:10px;" />
-          <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Anon Public Key</label>
-          <input type="password" class="settings-input" id="supabaseKey" placeholder="eyJhbGciO..." />
-          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:8px;">
-            <button class="save-btn" onclick="saveSupabase()" style="background:var(--accent-test);color:#0d0f14;">💾 Save &amp; Test</button>
-            <span id="supabaseStatus" style="font-size:12px;color:var(--muted);">Chưa cấu hình</span>
+          <!-- GPT -->
+          <div class="key-row">
+            <div class="key-row-label">
+              <span class="key-platform-icon">🤖</span>
+              <div>
+                <div class="key-platform-name">GPT-4o mini</div>
+                <a href="https://platform.openai.com/api-keys" target="_blank" class="key-link">platform.openai.com →</a>
+              </div>
+            </div>
+            <input type="password" class="settings-input key-input" id="key-gpt" placeholder="sk-...">
           </div>
+
+          <!-- Claude -->
+          <div class="key-row">
+            <div class="key-row-label">
+              <span class="key-platform-icon">⚡</span>
+              <div>
+                <div class="key-platform-name">Claude Sonnet</div>
+                <a href="https://console.anthropic.com" target="_blank" class="key-link">console.anthropic.com →</a>
+              </div>
+            </div>
+            <input type="password" class="settings-input key-input" id="key-claude" placeholder="sk-ant-...">
+          </div>
+
+          <button class="save-btn" id="saveKeysBtn" onclick="saveAllKeys()" style="margin-top:16px;width:100%;background:var(--accent-trans);">
+            💾 Lưu tất cả lên cloud
+          </button>
         </div>
 
+        <!-- BACKUP -->
         <div class="settings-section">
           <div class="settings-section-title">Backup &amp; Restore</div>
           <div style="display:flex;gap:10px;flex-wrap:wrap;">
@@ -174,7 +256,7 @@ CREATE POLICY "Allow all" ON vocabulary FOR ALL USING (true) WITH CHECK (true);<
               <input type="file" accept=".json" style="display:none" onchange="importFromJSON(this.files[0]);this.value=''">
             </label>
           </div>
-          <div style="font-size:12px;color:var(--muted);margin-top:8px;">Lưu API key và từ vựng vào file JSON</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:8px;">Xuất từ vựng ra file JSON để backup</div>
         </div>
 
       </div>
@@ -182,6 +264,16 @@ CREATE POLICY "Allow all" ON vocabulary FOR ALL USING (true) WITH CHECK (true);<
 
   </main>
 </div>
+
+<!-- TOAST -->
+<div id="toast" style="
+  position:fixed;bottom:2rem;left:50%;transform:translateX(-50%) translateY(80px);
+  background:var(--surface2);border:1px solid var(--border2);border-radius:10px;
+  padding:10px 20px;font-size:13px;color:var(--text);
+  box-shadow:0 8px 32px rgba(0,0,0,0.4);z-index:999;
+  transition:transform 0.3s cubic-bezier(0.34,1.56,0.64,1),opacity 0.3s;
+  opacity:0;pointer-events:none;white-space:nowrap;
+"></div>
 
 <script src="script/app.js"></script>
 </body>
