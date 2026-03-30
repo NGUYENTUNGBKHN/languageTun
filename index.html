@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LinguaAgent — English Dictionary</title>
+<title>LanguageTun — English Dictionary For Tun</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Playfair+Display:wght@700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
 <header>
-  <div class="logo">Lingua<span>Agent</span></div>
+  <div class="logo">Language<span>Tun</span></div>
   <div style="display:flex;align-items:center;gap:10px;">
     <span style="font-size:12px;color:var(--muted)" id="headerModel">✨ Gemini 2.5 Flash</span>
     <span class="api-status error" id="apiStatus">Not configured</span>
@@ -35,7 +35,7 @@
     </button>
 
     <div class="vocab-stats">
-      <div class="vocab-stats-title">Words learned</div>
+      <div class="vocab-stats-title">Words Learned</div>
       <div class="vocab-row">
         <span>📖 Total</span>
         <span class="vocab-count" id="enCount" style="color:var(--accent-trans)">0</span>
@@ -55,7 +55,7 @@
         <div class="empty-state">
           <div class="empty-icon">🔤</div>
           <div class="empty-title">English ↔ Vietnamese Dictionary</div>
-          <div class="empty-sub">Nhập một từ tiếng Anh hoặc tiếng Việt để xem nghĩa, cách đọc, mẫu câu, từ đồng nghĩa và trái nghĩa.</div>
+          <div class="empty-sub">Enter an English or Vietnamese word to see its meaning, pronunciation, example sentences, synonyms and antonyms.</div>
         </div>
       </div>
       <div class="input-area">
@@ -67,8 +67,8 @@
           <span class="chip" onclick="quickSend('procrastinate')">procrastinate</span>
         </div>
         <div class="input-row">
-          <textarea class="msg-input" id="input-translate" placeholder="Nhập từ cần tra... (Enter để tra cứu)" rows="1" onkeydown="handleKey(event)"></textarea>
-          <button class="send-btn trans" onclick="sendMessage()">Tra từ ↑</button>
+          <textarea class="msg-input" id="input-translate" placeholder="Enter a word to look up... (Press Enter to search)" rows="1" onkeydown="handleKey(event)"></textarea>
+          <button class="send-btn trans" onclick="sendMessage()">Look up ↑</button>
         </div>
       </div>
     </div>
@@ -79,17 +79,17 @@
         <div class="vocab-header">
           <div class="test-title">📚 Vocabulary List</div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-            <input type="text" id="vocabSearch" placeholder="🔍 Tìm từ..." oninput="renderVocabList()"
+            <input type="text" id="vocabSearch" placeholder="🔍 Search words..." oninput="renderVocabList()"
               style="background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:6px 12px;color:var(--text);font-size:13px;font-family:inherit;outline:none;width:160px;">
             <button class="gen-test-btn" onclick="exportVocabCSV()">📥 CSV</button>
-            <button class="gen-test-btn" onclick="switchTab('flashcard')" style="background:rgba(247,201,79,0.12);color:#f7c94f;border-color:rgba(247,201,79,0.3);">🃏 Ôn tập</button>
+            <button class="gen-test-btn" onclick="switchTab('flashcard')" style="background:rgba(247,201,79,0.12);color:#f7c94f;border-color:rgba(247,201,79,0.3);">🃏 Review</button>
           </div>
         </div>
         <div id="vocabTableWrap">
           <div class="empty-state" style="flex:none;padding:3rem 0;">
             <div class="empty-icon">📭</div>
-            <div class="empty-title">Chưa có từ nào</div>
-            <div class="empty-sub">Hãy tra từ trong Dictionary để từ vựng tự động lưu tại đây.</div>
+            <div class="empty-title">No words yet</div>
+            <div class="empty-sub">Look up words in the Dictionary to automatically save vocabulary here.</div>
           </div>
         </div>
       </div>
@@ -103,20 +103,20 @@
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
             <span id="fc-progress" style="font-size:13px;color:var(--muted);">— / —</span>
             <button class="gen-test-btn" onclick="startFlashcards(true)">🔀 Shuffle</button>
-            <button class="gen-test-btn" onclick="startFlashcards(false)" style="background:rgba(192,122,247,0.12);color:var(--accent-trans);border-color:rgba(192,122,247,0.3);">↺ Bắt đầu lại</button>
+            <button class="gen-test-btn" onclick="startFlashcards(false)" style="background:rgba(192,122,247,0.12);color:var(--accent-trans);border-color:rgba(192,122,247,0.3);">↺ Restart</button>
           </div>
         </div>
         <div id="fc-empty" class="empty-state" style="flex:1;">
           <div class="empty-icon">🃏</div>
-          <div class="empty-title">Chưa có từ để ôn tập</div>
-          <div class="empty-sub">Hãy tra ít nhất 1 từ trong Dictionary trước.</div>
+          <div class="empty-title">No words to review yet</div>
+          <div class="empty-sub">Look up at least 1 word in the Dictionary first.</div>
         </div>
         <div id="fc-main" style="display:none;flex:1;flex-direction:column;align-items:center;justify-content:center;gap:2rem;padding:2rem;">
           <div class="fc-card-wrap" onclick="flipCard()">
             <div class="fc-card" id="fc-card">
               <div class="fc-front">
                 <div class="fc-word" id="fc-word">—</div>
-                <div class="fc-hint">Nhấn để xem nghĩa</div>
+                <div class="fc-hint">Click to see meaning</div>
               </div>
               <div class="fc-back">
                 <div class="fc-meaning" id="fc-meaning">—</div>
@@ -134,34 +134,34 @@
                     <span class="fc-detail-val ant-text" id="fc-ant-val"></span>
                   </div>
                 </div>
-                <div class="fc-hint" style="margin-top:6px;">Nhấn lại để lật</div>
+                <div class="fc-hint" style="margin-top:6px;">Click again to flip</div>
               </div>
             </div>
           </div>
           <div class="fc-actions" id="fc-actions" style="display:none;">
-            <button class="fc-btn wrong" onclick="fcAnswer(false)">✗ Chưa nhớ</button>
-            <button class="fc-btn correct" onclick="fcAnswer(true)">✓ Đã nhớ</button>
+            <button class="fc-btn wrong" onclick="fcAnswer(false)">✗ Don't remember</button>
+            <button class="fc-btn correct" onclick="fcAnswer(true)">✓ Remembered</button>
           </div>
           <div id="fc-hint-reveal" style="color:var(--muted);font-size:13px;display:none;">
-            Nhấn vào thẻ để xem nghĩa trước khi đánh giá
+            Click the card to see the meaning before rating
           </div>
         </div>
         <div id="fc-results" style="display:none;flex:1;flex-direction:column;align-items:center;justify-content:center;gap:1.5rem;padding:2rem;text-align:center;">
           <div style="font-size:3rem;">🎉</div>
-          <div style="font-family:'Playfair Display',serif;font-size:1.5rem;">Hoàn thành!</div>
+          <div style="font-family:'Playfair Display',serif;font-size:1.5rem;">Completed!</div>
           <div class="fc-score-row">
             <div class="fc-score-box correct-box">
               <div class="fc-score-num" id="fc-correct-count">0</div>
-              <div class="fc-score-label">Đã nhớ ✓</div>
+              <div class="fc-score-label">Remembered ✓</div>
             </div>
             <div class="fc-score-box wrong-box">
               <div class="fc-score-num" id="fc-wrong-count">0</div>
-              <div class="fc-score-label">Chưa nhớ ✗</div>
+              <div class="fc-score-label">Forgotten ✗</div>
             </div>
           </div>
           <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;">
-            <button class="gen-test-btn" onclick="startFlashcards(true)" style="padding:10px 24px;">🔀 Ôn lại tất cả</button>
-            <button class="gen-test-btn" onclick="reviewWrong()" id="fc-retry-wrong-btn" style="background:rgba(232,96,122,0.12);color:var(--accent-jp);border-color:rgba(232,96,122,0.3);padding:10px 24px;">✗ Ôn từ chưa nhớ</button>
+            <button class="gen-test-btn" onclick="startFlashcards(true)" style="padding:10px 24px;">🔀 Review all</button>
+            <button class="gen-test-btn" onclick="reviewWrong()" id="fc-retry-wrong-btn" style="background:rgba(232,96,122,0.12);color:var(--accent-jp);border-color:rgba(232,96,122,0.3);padding:10px 24px;">✗ Review forgotten words</button>
           </div>
         </div>
       </div>
@@ -174,7 +174,7 @@
 
         <!-- MODEL SELECTOR -->
         <div class="settings-section">
-          <div class="settings-section-title">Chọn AI Model đang dùng</div>
+          <div class="settings-section-title">Select AI Model</div>
           <div class="model-grid">
             <div class="model-card selected-gemini" id="card-gemini" onclick="setModel('gemini')">
               <div class="model-card-icon">✨</div>
@@ -200,9 +200,9 @@
 
         <!-- API KEYS — all 3 platforms -->
         <div class="settings-section" style="border-color:rgba(192,122,247,0.3);">
-          <div class="settings-section-title" style="color:var(--accent-trans)">🔑 API Keys — lưu tự động lên cloud</div>
+          <div class="settings-section-title" style="color:var(--accent-trans)">🔑 API Keys — auto-saved to cloud</div>
           <div style="font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.7;">
-            Nhập key cho nền tảng bạn muốn dùng. Keys được mã hóa và lưu trên Supabase của bạn — không cần nhập lại mỗi lần mở app.
+            Enter keys for the platforms you want to use. Keys are encrypted and stored in your Supabase — no need to re-enter each time you open the app.
           </div>
 
           <!-- Gemini -->
@@ -242,7 +242,7 @@
           </div>
 
           <button class="save-btn" id="saveKeysBtn" onclick="saveAllKeys()" style="margin-top:16px;width:100%;background:var(--accent-trans);">
-            💾 Lưu tất cả lên cloud
+            💾 Save all to cloud
           </button>
         </div>
 
@@ -256,7 +256,7 @@
               <input type="file" accept=".json" style="display:none" onchange="importFromJSON(this.files[0]);this.value=''">
             </label>
           </div>
-          <div style="font-size:12px;color:var(--muted);margin-top:8px;">Xuất từ vựng ra file JSON để backup</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:8px;">Export vocabulary to JSON file for backup</div>
         </div>
 
       </div>

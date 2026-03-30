@@ -1,8 +1,8 @@
 // ═══════════════════════════════════════════════════════════════
-//  CONFIG — điền thông tin Supabase của bạn vào đây
+//  CONFIG — fill in your Supabase information here
 // ═══════════════════════════════════════════════════════════════
-const SUPABASE_URL  = 'https://rknbxrqlzgjmiylqihno.supabase.co';   // ← dán Project URL vào đây,  vd: https://xxxx.supabase.co
-const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJrbmJ4cnFsemdqbWl5bHFpaG5vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3OTQ0NDEsImV4cCI6MjA5MDM3MDQ0MX0.BzkXWgEKYv5MdMwwS3o1Ht9QY5syzITNoobK8nnHv9g';   // ← dán anon public key vào đây
+const SUPABASE_URL  = 'https://rknbxrqlzgjmiylqihno.supabase.co';   // ← paste Project URL here, e.g.: https://xxxx.supabase.co
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJrbmJ4cnFsemdqbWl5bHFpaG5vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3OTQ0NDEsImV4cCI6MjA5MDM3MDQ0MX0.BzkXWgEKYv5MdMwwS3o1Ht9QY5syzITNoobK8nnHv9g';   // ← paste anon public key here
 
 // ═══════════════════════════════════════════════════════════════
 let currentModel = 'gemini';
@@ -16,35 +16,35 @@ let apiKeys = { gemini: '', gpt: '', claude: '' };
 // ─────────────────────────────────────────────────────────────
 // SYSTEM PROMPT
 // ─────────────────────────────────────────────────────────────
-const DICT_SYSTEM = `Bạn là trợ lý học tiếng Anh cho người Việt Nam. Nhiệm vụ của bạn:
+const DICT_SYSTEM = `You are an English learning assistant for Vietnamese people. Your tasks:
 
-1. Khi người dùng nhập một từ tiếng Anh:
-   - Dịch sang tiếng Việt
-   - Cung cấp cách đọc phiên âm IPA (ví dụ: /ɪˈfɛm.ər.əl/)
-   - Phân loại từ loại (danh từ, động từ, tính từ...)
-   - Đưa ra 2–3 mẫu câu sử dụng từ đó trong tiếng Anh giao tiếp hoặc văn viết
-   - Đưa ra từ đồng nghĩa (synonyms) và trái nghĩa (antonyms) nếu có
-   - Thêm ghi chú ngữ pháp liên quan nếu cần thiết
-   - Nếu liên quan, lồng ghép ví dụ với các từ đã học trước đó
+1. When the user enters an English word:
+   - Translate to Vietnamese
+   - Provide IPA pronunciation (e.g.: /ɪˈfɛm.ər.əl/)
+   - Classify part of speech (noun, verb, adjective...)
+   - Give 2–3 example sentences using the word in spoken or written English
+   - Provide synonyms and antonyms if available
+   - Add relevant grammar notes if needed
+   - If relevant, incorporate examples with previously learned words
 
-2. Khi người dùng nhập một từ tiếng Việt:
-   - Dịch sang tiếng Anh
-   - Cung cấp cách đọc phiên âm IPA của từ tiếng Anh
-   - Đưa ra mẫu câu sử dụng từ tiếng Anh đó
-   - Đưa ra từ đồng nghĩa và trái nghĩa trong tiếng Anh
+2. When the user enters a Vietnamese word:
+   - Translate to English
+   - Provide IPA pronunciation of the English word
+   - Give example sentences using that English word
+   - Provide synonyms and antonyms in English
 
-3. Nếu người dùng sai chính tả: tự động sửa và ghi chú "Bạn có thể muốn hỏi: [từ đúng]".
+3. If the user misspells: auto-correct and note "You may have meant: [correct word]".
 
-4. Định dạng câu trả lời rõ ràng, dùng emoji, dễ đọc.
+4. Format responses clearly, use emoji, easy to read.
 
-5. QUAN TRỌNG — Cuối mỗi câu trả lời, thêm đúng 4 dòng metadata:
-[VOCAB:từ tiếng Anh:nghĩa tiếng Việt ngắn gọn]
-[EXAMPLE:một câu mẫu tiếng Anh hay nhất minh họa từ đó]
-[SYN:từ đồng nghĩa 1, từ đồng nghĩa 2, từ đồng nghĩa 3]
-[ANT:từ trái nghĩa 1, từ trái nghĩa 2]
+5. IMPORTANT — At the end of each response, add exactly 4 metadata lines:
+[VOCAB:English word:short Vietnamese meaning]
+[EXAMPLE:one best English example sentence illustrating the word]
+[SYN:synonym 1, synonym 2, synonym 3]
+[ANT:antonym 1, antonym 2]
 
-Nếu không có từ đồng nghĩa hoặc trái nghĩa thì để trống: [SYN:] hoặc [ANT:]
-Trả lời bằng tiếng Việt, chỉ phần ví dụ câu dùng tiếng Anh.`;
+If no synonyms or antonyms, leave empty: [SYN:] or [ANT:]
+Respond in Vietnamese, only example sentences in English.`;
 
 // ─────────────────────────────────────────────────────────────
 // TOAST
@@ -127,8 +127,8 @@ function getActiveKey() { return apiKeys[currentModel] || ''; }
 function updateKeyStatus() {
   const hasKey = !!getActiveKey();
   updateStatus(hasKey, hasKey
-    ? { gemini:'✓ Gemini sẵn sàng', gpt:'✓ GPT sẵn sàng', claude:'✓ Claude sẵn sàng' }[currentModel]
-    : 'Chưa có API key');
+    ? { gemini:'✓ Gemini ready', gpt:'✓ GPT ready', claude:'✓ Claude ready' }[currentModel]
+    : 'No API key');
 }
 
 // ─── Vocabulary table ────────────────────────────────────────
@@ -214,11 +214,11 @@ async function saveAllKeys() {
 
   // Basic validation
   const errs = [];
-  if (g && !g.startsWith('AIza'))   errs.push('Gemini key phải bắt đầu bằng AIza...');
+  if (g && !g.startsWith('AIza'))   errs.push('Gemini key must start with AIza...');
   if (p && !p.startsWith('sk-') || (p && p.startsWith('sk-ant-'))) {
-    if (p && (!p.startsWith('sk-') || p.startsWith('sk-ant-'))) errs.push('GPT key phải bắt đầu bằng sk-...');
+    if (p && (!p.startsWith('sk-') || p.startsWith('sk-ant-'))) errs.push('GPT key must start with sk-...');
   }
-  if (c && !c.startsWith('sk-ant-')) errs.push('Claude key phải bắt đầu bằng sk-ant-...');
+  if (c && !c.startsWith('sk-ant-')) errs.push('Claude key must start with sk-ant-...');
   if (errs.length) { showToast('⚠️ ' + errs[0], 'warn'); return; }
 
   apiKeys.gemini = g;
@@ -226,19 +226,19 @@ async function saveAllKeys() {
   apiKeys.claude = c;
 
   const btn = document.getElementById('saveKeysBtn');
-  btn.textContent = '🔄 Đang lưu...';
+  btn.textContent = '🔄 Saving...';
   btn.disabled = true;
 
   if (sbReady()) {
     await saveApiKeysToCloud();
-    showToast('✅ Đã lưu API keys lên cloud!', 'ok');
+    showToast('✅ Saved API keys to cloud!', 'ok');
   } else {
-    showToast('⚠️ Supabase chưa cấu hình — key chỉ lưu tạm', 'warn');
+    showToast('⚠️ Supabase not configured — keys saved temporarily', 'warn');
   }
 
   updateKeyStatus();
-  btn.textContent = '✓ Đã lưu!';
-  setTimeout(() => { btn.textContent = '💾 Lưu tất cả'; btn.disabled = false; }, 2000);
+  btn.textContent = '✓ Saved!';
+  setTimeout(() => { btn.textContent = '💾 Save all'; btn.disabled = false; }, 2000);
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -258,19 +258,19 @@ function renderVocabList() {
   if (filtered.length === 0) {
     wrap.innerHTML = `<div class="empty-state" style="flex:none;padding:3rem 0;">
       <div class="empty-icon">📭</div>
-      <div class="empty-title">${q ? 'Không tìm thấy' : 'Chưa có từ nào'}</div>
-      <div class="empty-sub">${q ? 'Thử từ khóa khác.' : 'Hãy tra từ trong Dictionary.'}</div>
+      <div class="empty-title">${q ? 'Not found' : 'No words yet'}</div>
+      <div class="empty-sub">${q ? 'Try a different keyword.' : 'Look up words in the Dictionary.'}</div>
     </div>`; return;
   }
 
   const list = filtered.slice().reverse();
   let html = `<table class="vocab-table">
     <thead><tr>
-      <th>#</th><th>Từ tiếng Anh</th><th>Nghĩa</th><th>Đồng nghĩa</th><th>Ngày học</th><th></th>
+      <th>#</th><th>English Word</th><th>Meaning</th><th>Synonyms</th><th>Date Learned</th><th></th>
     </tr></thead><tbody>`;
 
   list.forEach((v, i) => {
-    const date = v.date ? new Date(v.date).toLocaleDateString('vi-VN') : '—';
+    const date = v.date ? new Date(v.date).toLocaleDateString('en-US') : '—';
     const isOpen = expandedWord === v.word;
     const sw = v.word.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
 
@@ -287,10 +287,10 @@ function renderVocabList() {
 
     if (isOpen) {
       html += `<tr class="vocab-row-detail"><td colspan="6"><div class="vocab-detail-box">
-        ${v.example  ? `<div class="vd-row"><span class="vd-label">💬 Câu mẫu</span><span class="vd-val example-text">${escapeHtml(v.example)}</span></div>` : ''}
-        ${v.synonyms ? `<div class="vd-row"><span class="vd-label">🔗 Đồng nghĩa</span><span class="vd-val syn-text">${escapeHtml(v.synonyms)}</span></div>` : ''}
-        ${v.antonyms ? `<div class="vd-row"><span class="vd-label">↔️ Trái nghĩa</span><span class="vd-val ant-text">${escapeHtml(v.antonyms)}</span></div>` : ''}
-        ${!v.example&&!v.synonyms&&!v.antonyms ? `<div style="color:var(--muted);font-size:13px;">Không có dữ liệu mở rộng.</div>` : ''}
+        ${v.example  ? `<div class="vd-row"><span class="vd-label">💬 Example</span><span class="vd-val example-text">${escapeHtml(v.example)}</span></div>` : ''}
+        ${v.synonyms ? `<div class="vd-row"><span class="vd-label">🔗 Synonyms</span><span class="vd-val syn-text">${escapeHtml(v.synonyms)}</span></div>` : ''}
+        ${v.antonyms ? `<div class="vd-row"><span class="vd-label">↔️ Antonyms</span><span class="vd-val ant-text">${escapeHtml(v.antonyms)}</span></div>` : ''}
+        ${!v.example&&!v.synonyms&&!v.antonyms ? `<div style="color:var(--muted);font-size:13px;">No extended data available.</div>` : ''}
       </div></td></tr>`;
     }
   });
@@ -305,14 +305,14 @@ function deleteWord(word) {
   vocabLog = vocabLog.filter(v=>v.word!==word);
   document.getElementById('enCount').textContent = vocabLog.length;
   saveLocalCache(); renderVocabList(); deleteWordFromCloud(word);
-  showToast(`🗑️ Đã xóa "<strong>${word}</strong>"`, 'info');
+  showToast(`🗑️ Deleted "<strong>${word}</strong>"`, 'info');
 }
 
 function exportVocabCSV() {
-  if (!vocabLog.length) { showToast('Chưa có từ nào!','warn'); return; }
+  if (!vocabLog.length) { showToast('No words yet!','warn'); return; }
   const rows = [['Word','Meaning','Example','Synonyms','Antonyms','Date']].concat(
     vocabLog.map(v=>[v.word,v.meaning||'',v.example||'',v.synonyms||'',v.antonyms||'',
-      v.date?new Date(v.date).toLocaleDateString('vi-VN'):''])
+      v.date?new Date(v.date).toLocaleDateString('en-US'):''])
   );
   const csv = rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
   const a = document.createElement('a');
@@ -334,8 +334,8 @@ function importFromJSON(file) {
       if (c.vocabLog) { vocabLog=c.vocabLog; document.getElementById('enCount').textContent=vocabLog.length; }
       if (c.model) currentModel=c.model;
       saveLocalCache(); renderVocabList();
-      showToast('✅ Import thành công!','ok');
-    } catch(err) { showToast('❌ Lỗi: '+err.message); }
+      showToast('✅ Import successful!','ok');
+    } catch(err) { showToast('❌ Error: '+err.message); }
   };
   reader.readAsText(file);
 }
@@ -361,7 +361,7 @@ function startFlashcards(shuffle=false,deck=null) {
 }
 
 function reviewWrong() {
-  if (!fcWrongWords.length){showToast('Không có từ cần ôn lại!','ok');return;}
+  if (!fcWrongWords.length){showToast('No words to review!','ok');return;}
   startFlashcards(true,fcWrongWords);
 }
 
@@ -394,8 +394,8 @@ function flipCard() {
 }
 
 function fcAnswer(correct) {
-  if(correct){fcCorrect++;showToast('✓ Tốt lắm!','ok');}
-  else{fcWrong++;fcWrongWords.push(fcDeck[fcIndex]);showToast('✗ Ôn thêm nhé!','dup');}
+  if(correct){fcCorrect++;showToast('✓ Good job!','ok');}
+  else{fcWrong++;fcWrongWords.push(fcDeck[fcIndex]);showToast('✗ Keep studying!','dup');}
   fcIndex++;setTimeout(showCard,300);
 }
 
@@ -439,7 +439,7 @@ function updateStatus(ok, msg) {
 // ─────────────────────────────────────────────────────────────
 async function callAPI(system, messages) {
   const key = getActiveKey();
-  if (!key) throw new Error('Chưa có API key cho '+currentModel+'! Vào Settings để nhập.');
+  if (!key) throw new Error('No API key for '+currentModel+'! Go to Settings to enter one.');
 
   if (currentModel==='gemini') {
     const res = await fetch(
@@ -521,7 +521,7 @@ function appendMsg(role, text) {
   const container=document.getElementById('chat-translate');
   const empty=container.querySelector('.empty-state');
   if(empty) empty.remove();
-  const avInfo=role==='user'?['Bạn','user']:['Dic','agent-trans'];
+  const avInfo=role==='user'?['You','user']:['Dic','agent-trans'];
   const msgDiv=document.createElement('div');
   msgDiv.className='msg '+(role==='user'?'user':'');
   const cleanText=text.replace(/\[(VOCAB|EXAMPLE|SYN|ANT):.*?\]/g,'').trim();
@@ -536,11 +536,11 @@ function appendMsg(role, text) {
     const meta=parseMeta(text);
     if(!meta.word) return;
     const exists=vocabLog.find(v=>v.word.toLowerCase()===meta.word.toLowerCase());
-    if(exists){showToast(`📌 Từ "<strong>${meta.word}</strong>" đã có trong danh sách!`,'dup');return;}
+    if(exists){showToast(`📌 Word "<strong>${meta.word}</strong>" already in list!`,'dup');return;}
     const entry={word:meta.word,meaning:meta.meaning,example:meta.example,synonyms:meta.synonyms,antonyms:meta.antonyms,date:new Date().toISOString()};
     vocabLog.push(entry);
     saveWordToCloud(entry);
-    showToast(`✅ Đã lưu "<strong>${meta.word}</strong>"`,'ok');
+    showToast(`✅ Saved "<strong>${meta.word}</strong>"`,'ok');
     document.getElementById('enCount').textContent=vocabLog.length;
     saveLocalCache();
   }
@@ -565,7 +565,7 @@ async function sendMessage() {
     appendMsg('assistant',response);
     histories.translate.push({role:'user',content:text},{role:'assistant',content:response});
     if(histories.translate.length>20) histories.translate.splice(0,2);
-  } catch(err){indicator.remove();appendMsg('assistant','❌ Lỗi: '+err.message);}
+  } catch(err){indicator.remove();appendMsg('assistant','❌ Error: '+err.message);}
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -581,6 +581,6 @@ window.addEventListener('DOMContentLoaded', async () => {
     await loadApiKeysFromCloud();
     await loadVocabFromCloud();
   } else {
-    updateStatus(false,'Supabase chưa cấu hình trong code');
+    updateStatus(false,'Supabase not configured in code');
   }
 });
