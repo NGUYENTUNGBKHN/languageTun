@@ -14,7 +14,7 @@
   <div style="display:flex;align-items:center;gap:10px;">
     <span style="font-size:12px;color:var(--muted)" id="headerModel">✨ Gemini 2.5 Flash</span>
     <span class="api-status error" id="apiStatus">Not configured</span>
-    <button onclick="switchTab('settings')" style="background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:5px 12px;color:var(--muted);font-size:13px;cursor:pointer;font-family:inherit;">⚙️ Settings</button>
+    <button onclick="openSettings()" style="background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:5px 12px;color:var(--muted);font-size:13px;cursor:pointer;font-family:inherit;">⚙️ Settings</button>
   </div>
 </header>
 
@@ -30,7 +30,7 @@
     <button class="nav-btn flash-nav" id="nav-flashcard" onclick="switchTab('flashcard')">
       <div class="nav-dot" style="background:#f7c94f"></div> 🃏 Flashcards
     </button>
-    <button class="nav-btn settings" id="nav-settings" onclick="switchTab('settings')">
+    <button class="nav-btn settings" id="nav-settings" onclick="openSettings()">
       <div class="nav-dot" style="background:#7a8090"></div> ⚙️ Settings
     </button>
 
@@ -98,54 +98,83 @@
     <!-- FLASHCARD TAB -->
     <div class="tab-panel" id="tab-flashcard">
       <div class="flashcard-panel">
+
+        <!-- Header -->
         <div class="fc-header">
           <div class="test-title">🃏 Flashcards</div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-            <span id="fc-progress" style="font-size:13px;color:var(--muted);">— / —</span>
             <button class="gen-test-btn" onclick="startFlashcards(true)">🔀 Shuffle</button>
             <button class="gen-test-btn" onclick="startFlashcards(false)" style="background:rgba(192,122,247,0.12);color:var(--accent-trans);border-color:rgba(192,122,247,0.3);">↺ Restart</button>
           </div>
         </div>
+
+        <!-- Day filter -->
+        <div class="fc-day-bar" id="fc-day-bar">
+          <span style="font-size:12px;color:var(--muted);white-space:nowrap;">📅 Filter by day:</span>
+          <div class="fc-day-pills" id="fc-day-pills"></div>
+        </div>
+
+        <!-- Empty state -->
         <div id="fc-empty" class="empty-state" style="flex:1;">
           <div class="empty-icon">🃏</div>
           <div class="empty-title">No words to review yet</div>
           <div class="empty-sub">Look up at least 1 word in the Dictionary first.</div>
         </div>
-        <div id="fc-main" style="display:none;flex:1;flex-direction:column;align-items:center;justify-content:center;gap:2rem;padding:2rem;">
-          <div class="fc-card-wrap" onclick="flipCard()">
-            <div class="fc-card" id="fc-card">
-              <div class="fc-front">
-                <div class="fc-word" id="fc-word">—</div>
-                <div class="fc-hint">Click to see meaning</div>
-              </div>
-              <div class="fc-back">
-                <div class="fc-meaning" id="fc-meaning">—</div>
-                <div class="fc-back-details">
-                  <div class="fc-detail-row" id="fc-example">
-                    <span class="fc-detail-label">💬</span>
-                    <span class="fc-detail-val example-text" id="fc-example-val"></span>
-                  </div>
-                  <div class="fc-detail-row" id="fc-syn">
-                    <span class="fc-detail-label">🔗</span>
-                    <span class="fc-detail-val syn-text" id="fc-syn-val"></span>
-                  </div>
-                  <div class="fc-detail-row" id="fc-ant">
-                    <span class="fc-detail-label">↔️</span>
-                    <span class="fc-detail-val ant-text" id="fc-ant-val"></span>
-                  </div>
+
+        <!-- Main card area -->
+        <div id="fc-main" style="display:none;flex:1;flex-direction:column;align-items:center;justify-content:center;gap:1.5rem;padding:1.5rem;">
+
+          <!-- Progress -->
+          <div class="fc-progress-bar-wrap">
+            <div class="fc-progress-bar" id="fc-progress-bar"></div>
+          </div>
+          <span id="fc-progress" style="font-size:13px;color:var(--muted);">1 / 1</span>
+
+          <!-- Card + side nav -->
+          <div class="fc-nav-row">
+            <button class="fc-nav-btn" id="fc-prev-btn" onclick="fcNav(-1)" title="Previous (←)">‹</button>
+
+            <div class="fc-card-wrap" onclick="flipCard()">
+              <div class="fc-card" id="fc-card">
+                <div class="fc-front">
+                  <div class="fc-word" id="fc-word">—</div>
+                  <div class="fc-hint">Click to see meaning</div>
                 </div>
-                <div class="fc-hint" style="margin-top:6px;">Click again to flip</div>
+                <div class="fc-back">
+                  <div class="fc-meaning" id="fc-meaning">—</div>
+                  <div class="fc-back-details">
+                    <div class="fc-detail-row" id="fc-example">
+                      <span class="fc-detail-label">💬</span>
+                      <span class="fc-detail-val example-text" id="fc-example-val"></span>
+                    </div>
+                    <div class="fc-detail-row" id="fc-syn">
+                      <span class="fc-detail-label">🔗</span>
+                      <span class="fc-detail-val syn-text" id="fc-syn-val"></span>
+                    </div>
+                    <div class="fc-detail-row" id="fc-ant">
+                      <span class="fc-detail-label">↔️</span>
+                      <span class="fc-detail-val ant-text" id="fc-ant-val"></span>
+                    </div>
+                  </div>
+                  <div class="fc-hint" style="margin-top:6px;">Click again to flip</div>
+                </div>
               </div>
             </div>
+
+            <button class="fc-nav-btn" id="fc-next-btn" onclick="fcNav(1)" title="Next (→)">›</button>
           </div>
+
+          <!-- Know / Don't know -->
           <div class="fc-actions" id="fc-actions" style="display:none;">
             <button class="fc-btn wrong" onclick="fcAnswer(false)">✗ Don't remember</button>
             <button class="fc-btn correct" onclick="fcAnswer(true)">✓ Remembered</button>
           </div>
-          <div id="fc-hint-reveal" style="color:var(--muted);font-size:13px;display:none;">
-            Click the card to see the meaning before rating
+          <div id="fc-hint-reveal" style="color:var(--muted);font-size:13px;">
+            Click the card to reveal · ← → or swipe to navigate
           </div>
         </div>
+
+        <!-- Results -->
         <div id="fc-results" style="display:none;flex:1;flex-direction:column;align-items:center;justify-content:center;gap:1.5rem;padding:2rem;text-align:center;">
           <div style="font-size:3rem;">🎉</div>
           <div style="font-family:'Playfair Display',serif;font-size:1.5rem;">Completed!</div>
@@ -161,9 +190,10 @@
           </div>
           <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;">
             <button class="gen-test-btn" onclick="startFlashcards(true)" style="padding:10px 24px;">🔀 Review all</button>
-            <button class="gen-test-btn" onclick="reviewWrong()" id="fc-retry-wrong-btn" style="background:rgba(232,96,122,0.12);color:var(--accent-jp);border-color:rgba(232,96,122,0.3);padding:10px 24px;">✗ Review forgotten words</button>
+            <button class="gen-test-btn" onclick="reviewWrong()" id="fc-retry-wrong-btn" style="background:rgba(232,96,122,0.12);color:var(--accent-jp);border-color:rgba(232,96,122,0.3);padding:10px 24px;">✗ Review forgotten</button>
           </div>
         </div>
+
       </div>
     </div>
 
@@ -263,6 +293,40 @@
     </div>
 
   </main>
+</div>
+
+<!-- PASSWORD MODAL -->
+<div id="pwd-overlay" style="
+  display:none;position:fixed;inset:0;
+  background:rgba(0,0,0,0.6);backdrop-filter:blur(6px);
+  z-index:1000;align-items:center;justify-content:center;
+">
+  <div style="
+    background:var(--surface);border:1px solid var(--border2);
+    border-radius:16px;padding:2rem;width:320px;
+    box-shadow:0 24px 64px rgba(0,0,0,0.5);
+    display:flex;flex-direction:column;gap:16px;
+  ">
+    <div style="font-family:'Playfair Display',serif;font-size:1.2rem;text-align:center;">🔒 Admin Access</div>
+    <div style="font-size:13px;color:var(--muted);text-align:center;">Enter password to access Settings</div>
+    <input type="password" id="pwd-input" placeholder="Password"
+      style="background:var(--surface2);border:1px solid var(--border2);border-radius:8px;
+        color:var(--text);padding:10px 14px;font-size:14px;font-family:inherit;outline:none;width:100%;"
+      onkeydown="if(event.key==='Enter')checkPassword();if(event.key==='Escape')closePwdModal()">
+    <div id="pwd-error" style="color:var(--accent-jp);font-size:12px;text-align:center;display:none;">
+      ❌ Incorrect password
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button onclick="closePwdModal()" style="flex:1;background:var(--surface2);border:1px solid var(--border);
+        border-radius:8px;padding:9px;color:var(--muted);font-size:13px;cursor:pointer;font-family:inherit;">
+        Cancel
+      </button>
+      <button onclick="checkPassword()" style="flex:1;background:var(--accent-trans);border:none;
+        border-radius:8px;padding:9px;color:white;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;">
+        Enter
+      </button>
+    </div>
+  </div>
 </div>
 
 <!-- TOAST -->

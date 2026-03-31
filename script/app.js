@@ -341,19 +341,60 @@ function importFromJSON(file) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// FLASHCARD ENGINE
+// FLASHCARD ENGINE  — day filter + prev/next + keyboard
 // ─────────────────────────────────────────────────────────────
 let fcDeck=[],fcIndex=0,fcFlipped=false,fcCorrect=0,fcWrong=0,fcWrongWords=[];
+let fcSelectedDay='all';
+
+function toDateKey(iso) {
+  if (!iso) return 'unknown';
+  const d=new Date(iso);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function formatDayLabel(key) {
+  if (key==='all') return '📚 All';
+  const today=toDateKey(new Date().toISOString());
+  const yest=toDateKey(new Date(Date.now()-86400000).toISOString());
+  if (key===today) return '📅 Today';
+  if (key===yest)  return '📅 Yesterday';
+  const [y,m,d]=key.split('-');
+  return `${m}/${d}/${y}`;
+}
+
+function buildDayPills() {
+  const pills=document.getElementById('fc-day-pills');
+  if (!pills) return;
+  const daySet=new Set(vocabLog.map(v=>toDateKey(v.date)));
+  const days=['all',...[...daySet].sort().reverse()];
+  pills.innerHTML=days.map(day=>{
+    const count=day==='all'?vocabLog.length:vocabLog.filter(v=>toDateKey(v.date)===day).length;
+    return `<button class="fc-day-pill ${fcSelectedDay===day?'active':''}" onclick="selectDay('${day}')">
+      ${formatDayLabel(day)} <span class="fc-day-count">${count}</span>
+    </button>`;
+  }).join('');
+}
+
+function selectDay(day) {
+  fcSelectedDay=day; buildDayPills(); startFlashcards(false);
+}
+
+function getFilteredDeck(shuffle=false) {
+  const words=fcSelectedDay==='all'
+    ?[...vocabLog]
+    :vocabLog.filter(v=>toDateKey(v.date)===fcSelectedDay);
+  return shuffle?words.sort(()=>Math.random()-0.5):words.slice().reverse();
+}
 
 function startFlashcards(shuffle=false,deck=null) {
-  const words = deck||[...vocabLog];
+  buildDayPills();
+  const words=deck||getFilteredDeck(shuffle);
   if (!words.length) {
     document.getElementById('fc-empty').style.display='flex';
     document.getElementById('fc-main').style.display='none';
     document.getElementById('fc-results').style.display='none'; return;
   }
-  fcDeck=shuffle?words.sort(()=>Math.random()-0.5):words.slice().reverse();
-  fcIndex=fcCorrect=fcWrong=0; fcWrongWords=[];
+  fcDeck=words; fcIndex=fcCorrect=fcWrong=0; fcWrongWords=[];
   document.getElementById('fc-empty').style.display='none';
   document.getElementById('fc-results').style.display='none';
   document.getElementById('fc-main').style.display='flex';
@@ -361,7 +402,7 @@ function startFlashcards(shuffle=false,deck=null) {
 }
 
 function reviewWrong() {
-  if (!fcWrongWords.length){showToast('No words to review!','ok');return;}
+  if (!fcWrongWords.length){showToast('No forgotten words to review!','ok');return;}
   startFlashcards(true,fcWrongWords);
 }
 
@@ -380,6 +421,12 @@ function showCard() {
   if(v.synonyms) document.getElementById('fc-syn-val').textContent=v.synonyms;
   if(v.antonyms) document.getElementById('fc-ant-val').textContent=v.antonyms;
   document.getElementById('fc-progress').textContent=`${fcIndex+1} / ${fcDeck.length}`;
+  const pct=((fcIndex+1)/fcDeck.length*100).toFixed(1);
+  document.getElementById('fc-progress-bar').style.width=pct+'%';
+  const prevBtn=document.getElementById('fc-prev-btn');
+  const nextBtn=document.getElementById('fc-next-btn');
+  if(prevBtn) prevBtn.disabled=fcIndex===0;
+  if(nextBtn) nextBtn.disabled=fcIndex>=fcDeck.length-1;
   fcFlipped=false;
   document.getElementById('fc-card').classList.remove('flipped');
   document.getElementById('fc-actions').style.display='none';
@@ -393,10 +440,17 @@ function flipCard() {
   document.getElementById('fc-hint-reveal').style.display=fcFlipped?'none':'block';
 }
 
+function fcNav(dir) {
+  const next=fcIndex+dir;
+  if (next<0||next>=fcDeck.length) return;
+  fcIndex=next; showCard();
+}
+
 function fcAnswer(correct) {
   if(correct){fcCorrect++;showToast('✓ Good job!','ok');}
   else{fcWrong++;fcWrongWords.push(fcDeck[fcIndex]);showToast('✗ Keep studying!','dup');}
-  fcIndex++;setTimeout(showCard,300);
+  if(fcIndex<fcDeck.length-1){fcIndex++;setTimeout(showCard,300);}
+  else setTimeout(showResults,500);
 }
 
 function showResults() {
@@ -406,6 +460,15 @@ function showResults() {
   document.getElementById('fc-wrong-count').textContent=fcWrong;
   document.getElementById('fc-retry-wrong-btn').style.display=fcWrong>0?'block':'none';
 }
+
+// Keyboard: ← → Space
+document.addEventListener('keydown',e=>{
+  const fc=document.getElementById('tab-flashcard');
+  if(!fc||!fc.classList.contains('active')) return;
+  if(e.key==='ArrowLeft') {e.preventDefault();fcNav(-1);}
+  if(e.key==='ArrowRight'){e.preventDefault();fcNav(1);}
+  if(e.key===' ')         {e.preventDefault();flipCard();}
+});
 
 // ─────────────────────────────────────────────────────────────
 // MODEL SELECTION
@@ -502,7 +565,7 @@ function switchTab(tab) {
   const btn=document.getElementById('nav-'+tab);
   if(btn){btn.classList.add('active');btn.classList.add(tab==='translate'?'trans':tab==='vocab'?'vocab-nav':'flash-nav');}
   if(tab==='vocab') renderVocabList();
-  if(tab==='flashcard'&&(fcDeck.length===0||fcIndex>=fcDeck.length)) startFlashcards(false);
+  if(tab==='flashcard'){buildDayPills();if(fcDeck.length===0||fcIndex>=fcDeck.length) startFlashcards(false);}
 }
 
 function handleKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();}}
@@ -543,6 +606,7 @@ function appendMsg(role, text) {
     showToast(`✅ Saved "<strong>${meta.word}</strong>"`,'ok');
     document.getElementById('enCount').textContent=vocabLog.length;
     saveLocalCache();
+    buildDayPills();
   }
 }
 
@@ -567,6 +631,50 @@ async function sendMessage() {
     if(histories.translate.length>20) histories.translate.splice(0,2);
   } catch(err){indicator.remove();appendMsg('assistant','❌ Error: '+err.message);}
 }
+
+// ─────────────────────────────────────────────────────────────
+// ADMIN PASSWORD GATE
+// ─────────────────────────────────────────────────────────────
+const ADMIN_PASS = '123';
+let adminUnlocked = false;
+
+function openSettings() {
+  if (adminUnlocked) { switchTab('settings'); return; }
+  const overlay = document.getElementById('pwd-overlay');
+  overlay.style.display = 'flex';
+  document.getElementById('pwd-input').value = '';
+  document.getElementById('pwd-error').style.display = 'none';
+  setTimeout(() => document.getElementById('pwd-input').focus(), 50);
+}
+
+function checkPassword() {
+  const val = document.getElementById('pwd-input').value;
+  if (val === ADMIN_PASS) {
+    adminUnlocked = true;
+    closePwdModal();
+    switchTab('settings');
+  } else {
+    const err = document.getElementById('pwd-error');
+    err.style.display = 'block';
+    document.getElementById('pwd-input').value = '';
+    document.getElementById('pwd-input').focus();
+    // Shake animation
+    const box = err.closest('div[style*="border-radius:16px"]') || document.getElementById('pwd-input');
+    box.style.animation = 'shake 0.3s ease';
+    setTimeout(() => box.style.animation = '', 300);
+  }
+}
+
+function closePwdModal() {
+  document.getElementById('pwd-overlay').style.display = 'none';
+}
+
+// Close modal on backdrop click
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('pwd-overlay').addEventListener('click', e => {
+    if (e.target === document.getElementById('pwd-overlay')) closePwdModal();
+  });
+});
 
 // ─────────────────────────────────────────────────────────────
 // INIT
