@@ -7,7 +7,8 @@ const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 // ═══════════════════════════════════════════════════════════════
 let currentModel = 'gemini';
 let vocabLog = [];
-const histories = { translate: [] };
+let vocabLogJP = [];
+const histories = { translate: [], japanese: [] };
 const STORAGE_KEY = 'linguaagent_local';
 
 // API keys loaded from Supabase settings table
@@ -45,6 +46,34 @@ const DICT_SYSTEM = `You are an English learning assistant for Vietnamese people
 
 If no synonyms or antonyms, leave empty: [SYN:] or [ANT:]
 Respond in Vietnamese, only example sentences in English.`;
+
+const JP_SYSTEM = `Bạn là trợ lý học tiếng Nhật cho người Việt Nam. Nhiệm vụ của bạn:
+
+1. Khi người dùng nhập từ tiếng Nhật (kanji, hiragana, katakana, romaji):
+   - Dịch nghĩa sang tiếng Việt
+   - Cung cấp cách đọc: hiragana + romaji (ví dụ: たべる / taberu)
+   - Phân loại từ loại (động từ, tính từ, danh từ, trợ từ...)
+   - Nhóm động từ (Group 1 / 2 / 3) nếu là động từ
+   - Cho 2–3 câu ví dụ bằng tiếng Nhật (kèm furigana và dịch tiếng Việt)
+   - Ghi chú ngữ pháp quan trọng nếu cần (ví dụ: cách chia, mẫu câu phổ biến)
+   - Từ đồng nghĩa / trái nghĩa tiếng Nhật nếu có
+
+2. Khi người dùng nhập từ tiếng Việt:
+   - Dịch sang tiếng Nhật (kanji + hiragana)
+   - Cung cấp romaji
+   - Cho 1–2 câu ví dụ
+
+3. Nếu người dùng gõ sai: tự động sửa và ghi chú.
+
+4. Format rõ ràng, dùng emoji, dễ đọc.
+
+5. QUAN TRỌNG — Cuối mỗi câu trả lời, thêm đúng 4 dòng metadata:
+[VOCAB_JP:từ tiếng Nhật:nghĩa tiếng Việt ngắn gọn]
+[READING:hiragana/romaji]
+[EXAMPLE_JP:một câu ví dụ tiếng Nhật hay nhất]
+[TYPE:品詞 (loại từ bằng tiếng Việt)]
+
+Trả lời bằng tiếng Việt, câu ví dụ bằng tiếng Nhật.`;
 
 // ─────────────────────────────────────────────────────────────
 // TOAST
@@ -190,7 +219,7 @@ async function refreshCloudCount() {
 // LOCAL CACHE  (vocab only, no keys)
 // ─────────────────────────────────────────────────────────────
 function saveLocalCache() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify({ vocabLog, model: currentModel }));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ vocabLog, vocabLogJP, model: currentModel }));
 }
 
 function loadLocalCache() {
@@ -198,7 +227,8 @@ function loadLocalCache() {
     const s = localStorage.getItem(STORAGE_KEY);
     if (s) {
       const c = JSON.parse(s);
-      if (c.vocabLog) { vocabLog = c.vocabLog; document.getElementById('enCount').textContent = vocabLog.length; }
+      if (c.vocabLog)   { vocabLog   = c.vocabLog;   document.getElementById('enCount').textContent = vocabLog.length; }
+      if (c.vocabLogJP) { vocabLogJP = c.vocabLogJP; document.getElementById('jpCount').textContent = vocabLogJP.length; }
       if (c.model)    currentModel = c.model;
     }
   } catch(e) {}
@@ -560,10 +590,14 @@ function parseMeta(text) {
 // ─────────────────────────────────────────────────────────────
 function switchTab(tab) {
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active','trans','vocab-nav','flash-nav'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active','trans','vocab-nav','flash-nav','jp-nav'));
   document.getElementById('tab-'+tab).classList.add('active');
   const btn=document.getElementById('nav-'+tab);
-  if(btn){btn.classList.add('active');btn.classList.add(tab==='translate'?'trans':tab==='vocab'?'vocab-nav':'flash-nav');}
+  if(btn){
+    btn.classList.add('active');
+    const cls = tab==='translate'?'trans':tab==='vocab'?'vocab-nav':tab==='flashcard'?'flash-nav':tab==='japanese'?'jp-nav':'';
+    if(cls) btn.classList.add(cls);
+  }
   if(tab==='vocab') renderVocabList();
   if(tab==='flashcard'){buildDayPills();if(fcDeck.length===0||fcIndex>=fcDeck.length) startFlashcards(false);}
 }
@@ -630,6 +664,74 @@ async function sendMessage() {
     histories.translate.push({role:'user',content:text},{role:'assistant',content:response});
     if(histories.translate.length>20) histories.translate.splice(0,2);
   } catch(err){indicator.remove();appendMsg('assistant','❌ Error: '+err.message);}
+}
+
+// ─────────────────────────────────────────────────────────────
+// JAPANESE DICTIONARY
+// ─────────────────────────────────────────────────────────────
+function parseMetaJP(text) {
+  const get = tag => { const m=text.match(new RegExp(`\\[${tag}:(.*?)\\]`)); return m?m[1].trim():''; };
+  const vocab = get('VOCAB_JP');
+  return {
+    word:    vocab.split(':')[0].trim(),
+    meaning: vocab.split(':').slice(1).join(':').trim(),
+    reading: get('READING'),
+    example: get('EXAMPLE_JP'),
+    type:    get('TYPE')
+  };
+}
+
+function appendMsgJP(role, text) {
+  const container=document.getElementById('chat-japanese');
+  const empty=container.querySelector('.empty-state');
+  if(empty) empty.remove();
+  const avInfo=role==='user'?['You','user']:['JP','agent-jp'];
+  const msgDiv=document.createElement('div');
+  msgDiv.className='msg '+(role==='user'?'user':'');
+  const cleanText=text.replace(/\[(VOCAB_JP|READING|EXAMPLE_JP|TYPE):.*?\]/g,'').trim();
+  msgDiv.innerHTML=`
+    <div class="avatar ${avInfo[1]}">${avInfo[0]}</div>
+    <div class="bubble ${role==='user'?'user':''}">${role==='assistant'?formatMarkdown(cleanText):escapeHtml(cleanText)}</div>`;
+  container.appendChild(msgDiv);
+  container.scrollTop=container.scrollHeight;
+
+  if(role==='assistant') {
+    if(!/\[VOCAB_JP:/.test(text)) return;
+    const meta=parseMetaJP(text);
+    if(!meta.word) return;
+    const exists=vocabLogJP.find(v=>v.word===meta.word);
+    if(exists){showToast(`📌 Từ "<strong>${meta.word}</strong>" đã có trong danh sách!`,'dup');return;}
+    const entry={word:meta.word,meaning:meta.meaning,reading:meta.reading,example:meta.example,type:meta.type,date:new Date().toISOString()};
+    vocabLogJP.push(entry);
+    document.getElementById('jpCount').textContent=vocabLogJP.length;
+    saveLocalCache();
+    showToast(`✅ Đã lưu "<strong>${meta.word}</strong>" (${meta.reading})`,'ok');
+  }
+}
+
+function handleKeyJP(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessageJP();}}
+function quickSendJP(text){document.getElementById('input-japanese').value=text;sendMessageJP();}
+
+async function sendMessageJP() {
+  const input=document.getElementById('input-japanese');
+  const text=input.value.trim();
+  if(!text) return;
+  appendMsgJP('user',text);
+  input.value='';
+  const indicator=document.createElement('div');
+  indicator.className='typing-indicator';
+  indicator.innerHTML='<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>';
+  const container=document.getElementById('chat-japanese');
+  container.appendChild(indicator);
+  container.scrollTop=container.scrollHeight;
+  try {
+    const msgs=histories.japanese.concat({role:'user',content:text});
+    const response=await callAPI(JP_SYSTEM,msgs);
+    indicator.remove();
+    appendMsgJP('assistant',response);
+    histories.japanese.push({role:'user',content:text},{role:'assistant',content:response});
+    if(histories.japanese.length>20) histories.japanese.splice(0,2);
+  } catch(err){indicator.remove();appendMsgJP('assistant','❌ Lỗi: '+err.message);}
 }
 
 // ─────────────────────────────────────────────────────────────

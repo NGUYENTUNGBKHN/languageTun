@@ -24,6 +24,9 @@
     <button class="nav-btn trans active" id="nav-translate" onclick="switchTab('translate')">
       <div class="nav-dot" style="background:#c07af7"></div> 🔤 Dictionary
     </button>
+    <button class="nav-btn jp-nav" id="nav-japanese" onclick="switchTab('japanese')">
+      <div class="nav-dot" style="background:#e8607a"></div> 🇯🇵 Japanese
+    </button>
     <button class="nav-btn vocab-nav" id="nav-vocab" onclick="switchTab('vocab')">
       <div class="nav-dot" style="background:#4fc97a"></div> 📚 Vocabulary
     </button>
@@ -37,8 +40,12 @@
     <div class="vocab-stats">
       <div class="vocab-stats-title">Words Learned</div>
       <div class="vocab-row">
-        <span>📖 Total</span>
+        <span>🇺🇸 English</span>
         <span class="vocab-count" id="enCount" style="color:var(--accent-trans)">0</span>
+      </div>
+      <div class="vocab-row">
+        <span>🇯🇵 Japanese</span>
+        <span class="vocab-count" id="jpCount" style="color:var(--accent-jp)">0</span>
       </div>
       <div class="vocab-row" id="dbStatusRow" style="display:none">
         <span>☁️ Cloud</span>
@@ -69,6 +76,30 @@
         <div class="input-row">
           <textarea class="msg-input" id="input-translate" placeholder="Enter a word to look up... (Press Enter to search)" rows="1" onkeydown="handleKey(event)"></textarea>
           <button class="send-btn trans" onclick="sendMessage()">Look up ↑</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- JAPANESE DICTIONARY TAB -->
+    <div class="tab-panel" id="tab-japanese">
+      <div class="chat-container" id="chat-japanese">
+        <div class="empty-state">
+          <div class="empty-icon">🇯🇵</div>
+          <div class="empty-title">Japanese ↔ Vietnamese Dictionary</div>
+          <div class="empty-sub">Nhập từ tiếng Nhật (kanji, hiragana, katakana) hoặc tiếng Việt để tra nghĩa, cách đọc, ví dụ và ngữ pháp.</div>
+        </div>
+      </div>
+      <div class="input-area">
+        <div class="chips">
+          <span class="chip chip-jp" onclick="quickSendJP('食べる')">食べる</span>
+          <span class="chip chip-jp" onclick="quickSendJP('綺麗')">綺麗</span>
+          <span class="chip chip-jp" onclick="quickSendJP('ありがとう')">ありがとう</span>
+          <span class="chip chip-jp" onclick="quickSendJP('勉強')">勉強</span>
+          <span class="chip chip-jp" onclick="quickSendJP('難しい')">難しい</span>
+        </div>
+        <div class="input-row">
+          <textarea class="msg-input msg-input-jp" id="input-japanese" placeholder="Nhập từ tiếng Nhật hoặc tiếng Việt... (Enter để tra)" rows="1" onkeydown="handleKeyJP(event)"></textarea>
+          <button class="send-btn jp" onclick="sendMessageJP()">Tra từ ↑</button>
         </div>
       </div>
     </div>
