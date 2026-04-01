@@ -20,49 +20,78 @@
 
 <div class="app">
   <nav class="sidebar">
-    <div class="sidebar-label">Tools</div>
-    <button class="nav-btn trans active" id="nav-translate" onclick="switchTab('translate')">
-      <div class="nav-dot" style="background:#c07af7"></div> 🔤 Dictionary
-    </button>
-    <button class="nav-btn jp-nav" id="nav-japanese" onclick="switchTab('japanese')">
-      <div class="nav-dot" style="background:#e8607a"></div> 🇯🇵 Japanese
-    </button>
-    <button class="nav-btn vocab-nav" id="nav-vocab" onclick="switchTab('vocab')">
-      <div class="nav-dot" style="background:#4fc97a"></div> 📚 Vocabulary
-    </button>
-    <button class="nav-btn flash-nav" id="nav-flashcard" onclick="switchTab('flashcard')">
-      <div class="nav-dot" style="background:#f7c94f"></div> 🃏 Flashcards
-    </button>
-    <button class="nav-btn settings" id="nav-settings" onclick="openSettings()">
-      <div class="nav-dot" style="background:#7a8090"></div> ⚙️ Settings
-    </button>
+
+    <!-- ── ENGLISH GROUP ── -->
+    <div class="nav-group" id="group-en">
+      <button class="nav-group-header active" id="nav-group-en" onclick="toggleGroup('en')">
+        <span class="nav-group-arrow" id="arrow-en">▾</span>
+        <span class="nav-group-flag">🇺🇸</span>
+        <span class="nav-group-label">English</span>
+      </button>
+      <div class="nav-children" id="children-en">
+        <button class="nav-child active" id="nav-en-dict" onclick="switchPage('en-dict')">
+          <span class="nav-child-line"></span>📖 Dictionary
+        </button>
+        <button class="nav-child" id="nav-en-vocab" onclick="switchPage('en-vocab')">
+          <span class="nav-child-line"></span>📚 Vocabulary
+          <span class="nav-child-count" id="enCount">0</span>
+        </button>
+        <button class="nav-child" id="nav-en-flash" onclick="switchPage('en-flash')">
+          <span class="nav-child-line"></span>🃏 Flashcard
+        </button>
+      </div>
+    </div>
+
+    <!-- ── JAPANESE GROUP ── -->
+    <div class="nav-group" id="group-jp">
+      <button class="nav-group-header" id="nav-group-jp" onclick="toggleGroup('jp')">
+        <span class="nav-group-arrow" id="arrow-jp">▸</span>
+        <span class="nav-group-flag">🇯🇵</span>
+        <span class="nav-group-label">日本語</span>
+      </button>
+      <div class="nav-children" id="children-jp" style="display:none;">
+        <button class="nav-child" id="nav-jp-dict" onclick="switchPage('jp-dict')">
+          <span class="nav-child-line"></span>📖 辞書
+        </button>
+        <button class="nav-child" id="nav-jp-vocab" onclick="switchPage('jp-vocab')">
+          <span class="nav-child-line"></span>📚 語彙
+          <span class="nav-child-count" id="jpCount">0</span>
+        </button>
+        <button class="nav-child" id="nav-jp-flash" onclick="switchPage('jp-flash')">
+          <span class="nav-child-line"></span>🃏 フラッシュカード
+        </button>
+      </div>
+    </div>
+
+    <!-- ── SETTINGS ── -->
+    <div class="nav-group nav-group-solo">
+      <button class="nav-group-header" id="nav-settings" onclick="openSettings()">
+        <span class="nav-group-flag">⚙️</span>
+        <span class="nav-group-label">Settings</span>
+      </button>
+    </div>
 
     <div class="vocab-stats">
-      <div class="vocab-stats-title">Words Learned</div>
-      <div class="vocab-row">
-        <span>🇺🇸 English</span>
-        <span class="vocab-count" id="enCount" style="color:var(--accent-trans)">0</span>
-      </div>
-      <div class="vocab-row">
-        <span>🇯🇵 Japanese</span>
-        <span class="vocab-count" id="jpCount" style="color:var(--accent-jp)">0</span>
-      </div>
       <div class="vocab-row" id="dbStatusRow" style="display:none">
-        <span>☁️ Cloud</span>
-        <span class="vocab-count" id="dbCount" style="color:var(--accent-test)">—</span>
+        <span>Cloud EN</span>
+        <span class="vocab-count" id="dbCountEn" style="color:var(--accent-trans)">—</span>
+      </div>
+      <div class="vocab-row" id="dbStatusRowJP" style="display:none">
+        <span>Cloud JP</span>
+        <span class="vocab-count" id="dbCountJP" style="color:var(--accent-jp)">—</span>
       </div>
     </div>
   </nav>
 
   <main class="main">
 
-    <!-- DICTIONARY TAB -->
-    <div class="tab-panel active" id="tab-translate">
+    <!-- ══ EN DICTIONARY ══ -->
+    <div class="tab-panel active" id="tab-en-dict">
       <div class="chat-container" id="chat-translate">
         <div class="empty-state">
-          <div class="empty-icon">🔤</div>
+          <div class="empty-icon">📖</div>
           <div class="empty-title">English ↔ Vietnamese Dictionary</div>
-          <div class="empty-sub">Enter an English or Vietnamese word to see its meaning, pronunciation, example sentences, synonyms and antonyms.</div>
+          <div class="empty-sub">Enter an English or Vietnamese word to see its meaning, pronunciation, examples, synonyms and antonyms.</div>
         </div>
       </div>
       <div class="input-area">
@@ -74,18 +103,111 @@
           <span class="chip" onclick="quickSend('procrastinate')">procrastinate</span>
         </div>
         <div class="input-row">
-          <textarea class="msg-input" id="input-translate" placeholder="Enter a word to look up... (Press Enter to search)" rows="1" onkeydown="handleKey(event)"></textarea>
+          <textarea class="msg-input" id="input-translate" placeholder="Enter a word to look up… (Enter to search)" rows="1" onkeydown="handleKey(event)"></textarea>
           <button class="send-btn trans" onclick="sendMessage()">Look up ↑</button>
         </div>
       </div>
     </div>
 
-    <!-- JAPANESE DICTIONARY TAB -->
-    <div class="tab-panel" id="tab-japanese">
+    <!-- ══ EN VOCABULARY ══ -->
+    <div class="tab-panel" id="tab-en-vocab">
+      <div class="vocab-panel">
+        <div class="vocab-header">
+          <div class="test-title">📚 English Vocabulary</div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <input type="text" id="vocabSearch" placeholder="🔍 Search…" oninput="renderVocabList()"
+              style="background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:6px 12px;color:var(--text);font-size:13px;font-family:inherit;outline:none;width:150px;">
+            <button class="gen-test-btn" onclick="exportVocabCSV()">📥 CSV</button>
+            <button class="gen-test-btn" onclick="switchPage('en-flash')" style="background:rgba(247,201,79,0.12);color:#f7c94f;border-color:rgba(247,201,79,0.3);">🃏 Flashcard</button>
+          </div>
+        </div>
+        <div id="vocabTableWrap">
+          <div class="empty-state" style="flex:none;padding:3rem 0;">
+            <div class="empty-icon">📭</div>
+            <div class="empty-title">No words yet</div>
+            <div class="empty-sub">Look up words in the Dictionary — they save here automatically.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ EN FLASHCARD ══ -->
+    <div class="tab-panel" id="tab-en-flash">
+      <div class="flashcard-panel">
+        <div class="fc-header">
+          <div class="test-title">🃏 English Flashcards</div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <button class="gen-test-btn" onclick="startFlashcards(true)">🔀 Shuffle</button>
+            <button class="gen-test-btn" onclick="startFlashcards(false)" style="background:rgba(192,122,247,0.12);color:var(--accent-trans);border-color:rgba(192,122,247,0.3);">↺ Restart</button>
+          </div>
+        </div>
+        <div class="fc-day-bar" id="fc-day-bar">
+          <span style="font-size:12px;color:var(--muted);white-space:nowrap;">📅 Filter:</span>
+          <div class="fc-day-pills" id="fc-day-pills"></div>
+        </div>
+        <div id="fc-empty" class="empty-state" style="flex:1;">
+          <div class="empty-icon">🃏</div>
+          <div class="empty-title">No words to review yet</div>
+          <div class="empty-sub">Look up at least 1 word in the Dictionary first.</div>
+        </div>
+        <div id="fc-main" style="display:none;flex:1;flex-direction:column;align-items:center;justify-content:center;gap:1.5rem;padding:1.5rem;">
+          <div class="fc-progress-bar-wrap"><div class="fc-progress-bar" id="fc-progress-bar"></div></div>
+          <span id="fc-progress" style="font-size:13px;color:var(--muted);">1 / 1</span>
+          <div class="fc-nav-row">
+            <button class="fc-nav-btn" id="fc-prev-btn" onclick="fcNav(-1)" title="←">‹</button>
+            <div class="fc-card-wrap" onclick="flipCard()">
+              <div class="fc-card" id="fc-card">
+                <div class="fc-front">
+                  <div class="fc-word" id="fc-word">—</div>
+                  <button id="fc-speak-word" class="speak-btn speak-btn-fc" data-word="" title="Pronounce"
+                    onclick="event.stopPropagation();speakWord(this.getAttribute('data-word'),'en-US',this)">🔊</button>
+                  <div class="fc-hint">Click to reveal meaning</div>
+                </div>
+                <div class="fc-back">
+                  <div class="fc-meaning" id="fc-meaning">—</div>
+                  <div class="fc-back-details">
+                    <div class="fc-detail-row" id="fc-example">
+                      <span class="fc-detail-label">💬</span>
+                      <span class="fc-detail-val example-text" id="fc-example-val"></span>
+                      <button id="fc-speak-example" class="speak-btn speak-btn-sm" data-word="" title="Pronounce"
+                        onclick="event.stopPropagation();speakWord(this.getAttribute('data-word'),'en-US',this)">🔊</button>
+                    </div>
+                    <div class="fc-detail-row" id="fc-syn"><span class="fc-detail-label">🔗</span><span class="fc-detail-val syn-text" id="fc-syn-val"></span></div>
+                    <div class="fc-detail-row" id="fc-ant"><span class="fc-detail-label">↔️</span><span class="fc-detail-val ant-text" id="fc-ant-val"></span></div>
+                  </div>
+                  <div class="fc-hint" style="margin-top:6px;">Click again to flip</div>
+                </div>
+              </div>
+            </div>
+            <button class="fc-nav-btn" id="fc-next-btn" onclick="fcNav(1)" title="→">›</button>
+          </div>
+          <div class="fc-actions" id="fc-actions" style="display:none;">
+            <button class="fc-btn wrong" onclick="fcAnswer(false)">✗ Don't remember</button>
+            <button class="fc-btn correct" onclick="fcAnswer(true)">✓ Remembered</button>
+          </div>
+          <div id="fc-hint-reveal" style="color:var(--muted);font-size:13px;">Click card · ← → to navigate · Space to flip</div>
+        </div>
+        <div id="fc-results" style="display:none;flex:1;flex-direction:column;align-items:center;justify-content:center;gap:1.5rem;padding:2rem;text-align:center;">
+          <div style="font-size:3rem;">🎉</div>
+          <div style="font-family:'Playfair Display',serif;font-size:1.5rem;">Completed!</div>
+          <div class="fc-score-row">
+            <div class="fc-score-box correct-box"><div class="fc-score-num" id="fc-correct-count">0</div><div class="fc-score-label">Remembered ✓</div></div>
+            <div class="fc-score-box wrong-box"><div class="fc-score-num" id="fc-wrong-count">0</div><div class="fc-score-label">Forgotten ✗</div></div>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;">
+            <button class="gen-test-btn" onclick="startFlashcards(true)" style="padding:10px 24px;">🔀 Review all</button>
+            <button class="gen-test-btn" onclick="reviewWrong()" id="fc-retry-wrong-btn" style="background:rgba(232,96,122,0.12);color:var(--accent-jp);border-color:rgba(232,96,122,0.3);padding:10px 24px;">✗ Review forgotten</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ JP DICTIONARY ══ -->
+    <div class="tab-panel" id="tab-jp-dict">
       <div class="chat-container" id="chat-japanese">
         <div class="empty-state">
-          <div class="empty-icon">🇯🇵</div>
-          <div class="empty-title">Japanese ↔ Vietnamese Dictionary</div>
+          <div class="empty-icon">📖</div>
+          <div class="empty-title">日本語 ↔ ベトナム語辞書</div>
           <div class="empty-sub">Nhập từ tiếng Nhật (kanji, hiragana, katakana) hoặc tiếng Việt để tra nghĩa, cách đọc, ví dụ và ngữ pháp.</div>
         </div>
       </div>
@@ -98,133 +220,102 @@
           <span class="chip chip-jp" onclick="quickSendJP('難しい')">難しい</span>
         </div>
         <div class="input-row">
-          <textarea class="msg-input msg-input-jp" id="input-japanese" placeholder="Nhập từ tiếng Nhật hoặc tiếng Việt... (Enter để tra)" rows="1" onkeydown="handleKeyJP(event)"></textarea>
-          <button class="send-btn jp" onclick="sendMessageJP()">Tra từ ↑</button>
+          <textarea class="msg-input msg-input-jp" id="input-japanese" placeholder="日本語またはベトナム語を入力… (Enterで検索)" rows="1" onkeydown="handleKeyJP(event)"></textarea>
+          <button class="send-btn jp" onclick="sendMessageJP()">検索 ↑</button>
         </div>
       </div>
     </div>
 
-    <!-- VOCABULARY TAB -->
-    <div class="tab-panel" id="tab-vocab">
+    <!-- ══ JP VOCABULARY ══ -->
+    <div class="tab-panel" id="tab-jp-vocab">
       <div class="vocab-panel">
         <div class="vocab-header">
-          <div class="test-title">📚 Vocabulary List</div>
+          <div class="test-title">📚 語彙リスト</div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-            <input type="text" id="vocabSearch" placeholder="🔍 Search words..." oninput="renderVocabList()"
-              style="background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:6px 12px;color:var(--text);font-size:13px;font-family:inherit;outline:none;width:160px;">
-            <button class="gen-test-btn" onclick="exportVocabCSV()">📥 CSV</button>
-            <button class="gen-test-btn" onclick="switchTab('flashcard')" style="background:rgba(247,201,79,0.12);color:#f7c94f;border-color:rgba(247,201,79,0.3);">🃏 Review</button>
+            <input type="text" id="vocabSearchJP" placeholder="🔍 検索…" oninput="renderVocabListJP()"
+              style="background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:6px 12px;color:var(--text);font-size:13px;font-family:inherit;outline:none;width:150px;">
+            <button class="gen-test-btn" onclick="exportVocabCSVJP()" style="background:rgba(232,96,122,0.12);color:var(--accent-jp);border-color:rgba(232,96,122,0.3);">📥 CSV</button>
+            <button class="gen-test-btn" onclick="switchPage('jp-flash')" style="background:rgba(247,201,79,0.12);color:#f7c94f;border-color:rgba(247,201,79,0.3);">🃏 フラッシュ</button>
           </div>
         </div>
-        <div id="vocabTableWrap">
+        <div id="vocabTableWrapJP">
           <div class="empty-state" style="flex:none;padding:3rem 0;">
             <div class="empty-icon">📭</div>
-            <div class="empty-title">No words yet</div>
-            <div class="empty-sub">Look up words in the Dictionary to automatically save vocabulary here.</div>
+            <div class="empty-title">語彙が見つかりません</div>
+            <div class="empty-sub">検索 辞書 — ここで言葉を保存する.</div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- FLASHCARD TAB -->
-    <div class="tab-panel" id="tab-flashcard">
+    <!-- ══ JP FLASHCARD ══ -->
+    <div class="tab-panel" id="tab-jp-flash">
       <div class="flashcard-panel">
-
-        <!-- Header -->
         <div class="fc-header">
-          <div class="test-title">🃏 Flashcards</div>
+          <div class="test-title">🃏 フラッシュカード</div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-            <button class="gen-test-btn" onclick="startFlashcards(true)">🔀 Shuffle</button>
-            <button class="gen-test-btn" onclick="startFlashcards(false)" style="background:rgba(192,122,247,0.12);color:var(--accent-trans);border-color:rgba(192,122,247,0.3);">↺ Restart</button>
+            <button class="gen-test-btn" onclick="startFlashcardsJP(true)" style="background:rgba(232,96,122,0.12);color:var(--accent-jp);border-color:rgba(232,96,122,0.3);">🔀 シャッフル</button>
+            <button class="gen-test-btn" onclick="startFlashcardsJP(false)" style="background:rgba(232,96,122,0.12);color:var(--accent-jp);border-color:rgba(232,96,122,0.3);">↺ 再起動</button>
           </div>
         </div>
-
-        <!-- Day filter -->
-        <div class="fc-day-bar" id="fc-day-bar">
-          <span style="font-size:12px;color:var(--muted);white-space:nowrap;">📅 Filter by day:</span>
-          <div class="fc-day-pills" id="fc-day-pills"></div>
+        <div class="fc-day-bar" id="fc-day-bar-jp">
+          <span style="font-size:12px;color:var(--muted);white-space:nowrap;">📅 Filter:</span>
+          <div class="fc-day-pills" id="fc-day-pills-jp"></div>
         </div>
-
-        <!-- Empty state -->
-        <div id="fc-empty" class="empty-state" style="flex:1;">
+        <div id="fc-empty-jp" class="empty-state" style="flex:1;">
           <div class="empty-icon">🃏</div>
-          <div class="empty-title">No words to review yet</div>
-          <div class="empty-sub">Look up at least 1 word in the Dictionary first.</div>
+          <div class="empty-title">フラッシュカードが見つかりません</div>
+          <div class="empty-sub">少なくとも1つの日本語の単語を追加してください。</div>
         </div>
-
-        <!-- Main card area -->
-        <div id="fc-main" style="display:none;flex:1;flex-direction:column;align-items:center;justify-content:center;gap:1.5rem;padding:1.5rem;">
-
-          <!-- Progress -->
-          <div class="fc-progress-bar-wrap">
-            <div class="fc-progress-bar" id="fc-progress-bar"></div>
-          </div>
-          <span id="fc-progress" style="font-size:13px;color:var(--muted);">1 / 1</span>
-
-          <!-- Card + side nav -->
+        <div id="fc-main-jp" style="display:none;flex:1;flex-direction:column;align-items:center;justify-content:center;gap:1.5rem;padding:1.5rem;">
+          <div class="fc-progress-bar-wrap"><div class="fc-progress-bar" id="fc-progress-bar-jp"></div></div>
+          <span id="fc-progress-jp" style="font-size:13px;color:var(--muted);">1 / 1</span>
           <div class="fc-nav-row">
-            <button class="fc-nav-btn" id="fc-prev-btn" onclick="fcNav(-1)" title="Previous (←)">‹</button>
-
-            <div class="fc-card-wrap" onclick="flipCard()">
-              <div class="fc-card" id="fc-card">
+            <button class="fc-nav-btn" id="fc-prev-btn-jp" onclick="fcNavJP(-1)" title="←">‹</button>
+            <div class="fc-card-wrap fc-card-wrap-jp" onclick="flipCardJP()">
+              <div class="fc-card" id="fc-card-jp">
                 <div class="fc-front">
-                  <div class="fc-word" id="fc-word">—</div>
-                  <div class="fc-hint">Click to see meaning</div>
+                  <div class="fc-word" id="fc-word-jp" style="font-family:'Noto Sans JP',sans-serif;">—</div>
+                  <div id="fc-reading-jp" style="font-size:14px;color:var(--muted);margin-top:2px;font-family:'Noto Sans JP',sans-serif;"></div>
+                  <button id="fc-speak-word-jp" class="speak-btn speak-btn-fc" style="border-color:rgba(232,96,122,0.35);color:var(--accent-jp);" data-word="" title="発音"
+                    onclick="event.stopPropagation();speakWord(this.getAttribute('data-word'),'ja-JP',this)">🔊</button>
+                  <div class="fc-hint">クリックして意味を見る</div>
                 </div>
                 <div class="fc-back">
-                  <div class="fc-meaning" id="fc-meaning">—</div>
+                  <div class="fc-meaning" id="fc-meaning-jp">—</div>
                   <div class="fc-back-details">
-                    <div class="fc-detail-row" id="fc-example">
+                    <div class="fc-detail-row" id="fc-example-jp">
                       <span class="fc-detail-label">💬</span>
-                      <span class="fc-detail-val example-text" id="fc-example-val"></span>
+                      <span class="fc-detail-val example-text" id="fc-example-val-jp" style="font-family:'Noto Sans JP',sans-serif;"></span>
+                      <button id="fc-speak-example-jp" class="speak-btn speak-btn-sm" style="border-color:rgba(232,96,122,0.35);color:var(--accent-jp);" data-word="" title="発音"
+                        onclick="event.stopPropagation();speakWord(this.getAttribute('data-word'),'ja-JP',this)">🔊</button>
                     </div>
-                    <div class="fc-detail-row" id="fc-syn">
-                      <span class="fc-detail-label">🔗</span>
-                      <span class="fc-detail-val syn-text" id="fc-syn-val"></span>
-                    </div>
-                    <div class="fc-detail-row" id="fc-ant">
-                      <span class="fc-detail-label">↔️</span>
-                      <span class="fc-detail-val ant-text" id="fc-ant-val"></span>
-                    </div>
+                    <div class="fc-detail-row" id="fc-type-jp"><span class="fc-detail-label">📝</span><span class="fc-detail-val" id="fc-type-val-jp"></span></div>
                   </div>
-                  <div class="fc-hint" style="margin-top:6px;">Click again to flip</div>
+                  <div class="fc-hint" style="margin-top:6px;">もう一度クリックで裏返す</div>
                 </div>
               </div>
             </div>
-
-            <button class="fc-nav-btn" id="fc-next-btn" onclick="fcNav(1)" title="Next (→)">›</button>
+            <button class="fc-nav-btn" id="fc-next-btn-jp" onclick="fcNavJP(1)" title="→">›</button>
           </div>
-
-          <!-- Know / Don't know -->
-          <div class="fc-actions" id="fc-actions" style="display:none;">
-            <button class="fc-btn wrong" onclick="fcAnswer(false)">✗ Don't remember</button>
-            <button class="fc-btn correct" onclick="fcAnswer(true)">✓ Remembered</button>
+          <div class="fc-actions" id="fc-actions-jp" style="display:none;">
+            <button class="fc-btn wrong" onclick="fcAnswerJP(false)">✗ 忘れた</button>
+            <button class="fc-btn correct" onclick="fcAnswerJP(true)">✓ 覚えた</button>
           </div>
-          <div id="fc-hint-reveal" style="color:var(--muted);font-size:13px;">
-            Click the card to reveal · ← → or swipe to navigate
-          </div>
+          <div id="fc-hint-reveal-jp" style="color:var(--muted);font-size:13px;">クリック · ← → ナビ · Space で裏返す</div>
         </div>
-
-        <!-- Results -->
-        <div id="fc-results" style="display:none;flex:1;flex-direction:column;align-items:center;justify-content:center;gap:1.5rem;padding:2rem;text-align:center;">
+        <div id="fc-results-jp" style="display:none;flex:1;flex-direction:column;align-items:center;justify-content:center;gap:1.5rem;padding:2rem;text-align:center;">
           <div style="font-size:3rem;">🎉</div>
-          <div style="font-family:'Playfair Display',serif;font-size:1.5rem;">Completed!</div>
+          <div style="font-family:'Playfair Display',serif;font-size:1.5rem;">完了！</div>
           <div class="fc-score-row">
-            <div class="fc-score-box correct-box">
-              <div class="fc-score-num" id="fc-correct-count">0</div>
-              <div class="fc-score-label">Remembered ✓</div>
-            </div>
-            <div class="fc-score-box wrong-box">
-              <div class="fc-score-num" id="fc-wrong-count">0</div>
-              <div class="fc-score-label">Forgotten ✗</div>
-            </div>
+            <div class="fc-score-box correct-box"><div class="fc-score-num" id="fc-correct-count-jp">0</div><div class="fc-score-label">覚えた ✓</div></div>
+            <div class="fc-score-box wrong-box"><div class="fc-score-num" id="fc-wrong-count-jp">0</div><div class="fc-score-label">忘れた ✗</div></div>
           </div>
           <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;">
-            <button class="gen-test-btn" onclick="startFlashcards(true)" style="padding:10px 24px;">🔀 Review all</button>
-            <button class="gen-test-btn" onclick="reviewWrong()" id="fc-retry-wrong-btn" style="background:rgba(232,96,122,0.12);color:var(--accent-jp);border-color:rgba(232,96,122,0.3);padding:10px 24px;">✗ Review forgotten</button>
+            <button class="gen-test-btn" onclick="startFlashcardsJP(true)" style="padding:10px 24px;background:rgba(232,96,122,0.12);color:var(--accent-jp);border-color:rgba(232,96,122,0.3);">🔀 全部復習</button>
+            <button class="gen-test-btn" onclick="reviewWrongJP()" id="fc-retry-wrong-btn-jp" style="background:rgba(247,201,79,0.12);color:#f7c94f;border-color:rgba(247,201,79,0.3);padding:10px 24px;">✗ 忘れた単語</button>
           </div>
         </div>
-
       </div>
     </div>
 

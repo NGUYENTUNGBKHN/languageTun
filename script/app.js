@@ -10,6 +10,8 @@ let vocabLog = [];
 let vocabLogJP = [];
 const histories = { translate: [], japanese: [] };
 const STORAGE_KEY = 'linguaagent_local';
+let jpCloudAvailable = true;
+let jpCloudWarningShown = false;
 
 // API keys loaded from Supabase settings table
 let apiKeys = { gemini: '', gpt: '', claude: '' };
@@ -95,6 +97,24 @@ function showToast(msg, type = 'info') {
 }
 
 // ─────────────────────────────────────────────────────────────
+// VOICE PRONUNCIATION  — Web Speech API TTS
+// ─────────────────────────────────────────────────────────────
+function speakWord(word, lang = 'en-US', btn = null) {
+  if (!window.speechSynthesis) { showToast('⚠️ Speech not supported in this browser', 'warn'); return; }
+  window.speechSynthesis.cancel();
+  const utter = new SpeechSynthesisUtterance(word);
+  utter.lang = lang;
+  utter.rate = 0.85;
+  utter.pitch = 1;
+  if (btn) {
+    btn.classList.add('speaking');
+    utter.onend = () => btn.classList.remove('speaking');
+    utter.onerror = () => btn.classList.remove('speaking');
+  }
+  window.speechSynthesis.speak(utter);
+}
+
+// ─────────────────────────────────────────────────────────────
 // SUPABASE CORE  — fixed credentials, no UI input needed
 // ─────────────────────────────────────────────────────────────
 function sbReady() { return SUPABASE_URL && SUPABASE_ANON; }
@@ -111,6 +131,23 @@ function sbFetch(table, method, query = '', body = null) {
   };
   if (body) opts.body = JSON.stringify(body);
   return fetch(`${SUPABASE_URL}/rest/v1/${table}${query}`, opts);
+}
+
+function handleJPCloudMissingTable(res) {
+  if (res && res.status === 404) {
+    jpCloudAvailable = false;
+    const row = document.getElementById('dbStatusRowJP');
+    const count = document.getElementById('dbCountJP');
+    if (row) row.style.display = 'flex';
+    if (count) count.textContent = 'off';
+    if (!jpCloudWarningShown) {
+      jpCloudWarningShown = true;
+      console.warn('Supabase table "vocabulary_jp" was not found. Japanese vocab will stay local until that table is created.');
+      showToast('Japanese cloud sync is off until Supabase table vocabulary_jp is created.', 'warn');
+    }
+    return true;
+  }
+  return false;
 }
 
 // ─── Settings table: save / load API keys ───────────────────
@@ -170,8 +207,23 @@ async function saveWordToCloud(entry) {
       synonyms: entry.synonyms || null,
       antonyms: entry.antonyms || null
     });
-    refreshCloudCount();
+    refreshCloudCountEN();
   } catch(e) { console.warn('Word save failed:', e); }
+}
+
+async function saveWordToCloudJP(entry) {
+  if (!sbReady() || !jpCloudAvailable) return;
+  try {
+    const res = await sbFetch('vocabulary_jp', 'POST', '', {
+      word: entry.word,
+      meaning: entry.meaning,
+      reading: entry.reading || null,
+      example: entry.example || null,
+      type: entry.type || null
+    });
+    if (handleJPCloudMissingTable(res) || !res.ok) return;
+    refreshCloudCountJP();
+  } catch(e) { console.warn('Japanese word save failed:', e); }
 }
 
 async function loadVocabFromCloud() {
@@ -190,28 +242,79 @@ async function loadVocabFromCloud() {
       }
     });
     document.getElementById('enCount').textContent = vocabLog.length;
-    document.getElementById('dbCount').textContent = data.length;
+    document.getElementById('dbCountEn').textContent = data.length;
     document.getElementById('dbStatusRow').style.display = 'flex';
     saveLocalCache();
     renderVocabList();
+    renderVocabListJP();
   } catch(e) { console.warn('Vocab load failed:', e); }
+}
+
+async function loadVocabFromCloudJP() {
+  if (!sbReady() || !jpCloudAvailable) return;
+  try {
+    const res = await sbFetch('vocabulary_jp', 'GET', '?order=created_at.desc&limit=1000');
+    if (handleJPCloudMissingTable(res) || !res.ok) return;
+    const data = await res.json();
+    data.forEach(row => {
+      if (!vocabLogJP.find(v => v.word === row.word)) {
+        vocabLogJP.push({
+          word: row.word,
+          meaning: row.meaning,
+          reading: row.reading || '',
+          example: row.example || '',
+          type: row.type || '',
+          date: row.created_at
+        });
+      }
+    });
+    document.getElementById('jpCount').textContent = vocabLogJP.length;
+    document.getElementById('dbCountJP').textContent = data.length;
+    document.getElementById('dbStatusRowJP').style.display = 'flex';
+    saveLocalCache();
+    renderVocabListJP();
+  } catch(e) { console.warn('Japanese vocab load failed:', e); }
 }
 
 async function deleteWordFromCloud(word) {
   if (!sbReady()) return;
-  try { await sbFetch('vocabulary', 'DELETE', `?word=eq.${encodeURIComponent(word)}`); }
+  try {
+    await sbFetch('vocabulary', 'DELETE', `?word=eq.${encodeURIComponent(word)}`);
+    refreshCloudCountEN();
+  }
   catch(e) {}
 }
 
-async function refreshCloudCount() {
+async function deleteWordFromCloudJP(word) {
+  if (!sbReady() || !jpCloudAvailable) return;
+  try {
+    const res = await sbFetch('vocabulary_jp', 'DELETE', `?word=eq.${encodeURIComponent(word)}`);
+    handleJPCloudMissingTable(res);
+    if (res.ok) refreshCloudCountJP();
+  }
+  catch(e) {}
+}
+
+async function refreshCloudCountEN() {
   if (!sbReady()) return;
   try {
     const res = await sbFetch('vocabulary', 'GET', '?select=id');
     if (res.ok) {
       const d = await res.json();
-      document.getElementById('dbCount').textContent = d.length;
+      document.getElementById('dbCountEn').textContent = d.length;
       document.getElementById('dbStatusRow').style.display = 'flex';
     }
+  } catch(e) {}
+}
+
+async function refreshCloudCountJP() {
+  if (!sbReady() || !jpCloudAvailable) return;
+  try {
+    const res = await sbFetch('vocabulary_jp', 'GET', '?select=id');
+    if (handleJPCloudMissingTable(res) || !res.ok) return;
+    const d = await res.json();
+    document.getElementById('dbCountJP').textContent = d.length;
+    document.getElementById('dbStatusRowJP').style.display = 'flex';
   } catch(e) {}
 }
 
@@ -306,7 +409,12 @@ function renderVocabList() {
 
     html += `<tr class="vocab-row-main ${isOpen?'row-open':''}" onclick="toggleExpand('${sw}')">
       <td style="color:var(--muted);font-size:12px;">${list.length-i}</td>
-      <td><strong style="color:var(--accent-trans)">${escapeHtml(v.word)}</strong></td>
+      <td>
+        <span style="display:inline-flex;align-items:center;gap:6px;">
+          <strong style="color:var(--accent-trans)">${escapeHtml(v.word)}</strong>
+          <button class="speak-btn" title="Pronounce" onclick="speakWord('${sw}','en-US',this);event.stopPropagation()">🔊</button>
+        </span>
+      </td>
       <td>${escapeHtml(v.meaning||'')}</td>
       <td style="color:var(--muted);font-size:12px;">${escapeHtml((v.synonyms||'').split(',').slice(0,2).join(', '))}</td>
       <td style="color:var(--muted);font-size:12px;">${date}</td>
@@ -317,7 +425,7 @@ function renderVocabList() {
 
     if (isOpen) {
       html += `<tr class="vocab-row-detail"><td colspan="6"><div class="vocab-detail-box">
-        ${v.example  ? `<div class="vd-row"><span class="vd-label">💬 Example</span><span class="vd-val example-text">${escapeHtml(v.example)}</span></div>` : ''}
+        ${v.example  ? `<div class="vd-row"><span class="vd-label">💬 Example</span><span class="vd-val example-text">${escapeHtml(v.example)}</span><button class="speak-btn speak-btn-sm" title="Pronounce example" onclick="speakWord(${JSON.stringify(v.example)},'en-US',this)">🔊</button></div>` : ''}
         ${v.synonyms ? `<div class="vd-row"><span class="vd-label">🔗 Synonyms</span><span class="vd-val syn-text">${escapeHtml(v.synonyms)}</span></div>` : ''}
         ${v.antonyms ? `<div class="vd-row"><span class="vd-label">↔️ Antonyms</span><span class="vd-val ant-text">${escapeHtml(v.antonyms)}</span></div>` : ''}
         ${!v.example&&!v.synonyms&&!v.antonyms ? `<div style="color:var(--muted);font-size:13px;">No extended data available.</div>` : ''}
@@ -461,6 +569,18 @@ function showCard() {
   document.getElementById('fc-card').classList.remove('flipped');
   document.getElementById('fc-actions').style.display='none';
   document.getElementById('fc-hint-reveal').style.display='block';
+
+  // Update speak buttons with current word/example
+  const speakWordBtn = document.getElementById('fc-speak-word');
+  const speakExBtn   = document.getElementById('fc-speak-example');
+  if (speakWordBtn) speakWordBtn.setAttribute('data-word', v.word);
+  if (speakExBtn)   speakExBtn.setAttribute('data-word', v.example||'');
+
+  // Auto-pronounce the word on each new card
+  if (window.speechSynthesis) {
+    window.speechSynthesis.cancel();
+    setTimeout(() => speakWord(v.word, 'en-US'), 200);
+  }
 }
 
 function flipCard() {
@@ -491,14 +611,210 @@ function showResults() {
   document.getElementById('fc-retry-wrong-btn').style.display=fcWrong>0?'block':'none';
 }
 
-// Keyboard: ← → Space
+// Keyboard: ← → Space (EN)
 document.addEventListener('keydown',e=>{
-  const fc=document.getElementById('tab-flashcard');
-  if(!fc||!fc.classList.contains('active')) return;
-  if(e.key==='ArrowLeft') {e.preventDefault();fcNav(-1);}
-  if(e.key==='ArrowRight'){e.preventDefault();fcNav(1);}
-  if(e.key===' ')         {e.preventDefault();flipCard();}
+  const enFlash = document.getElementById('tab-en-flash');
+  const jpFlash = document.getElementById('tab-jp-flash');
+  if (enFlash && enFlash.classList.contains('active')) {
+    if(e.key==='ArrowLeft') {e.preventDefault();fcNav(-1);}
+    if(e.key==='ArrowRight'){e.preventDefault();fcNav(1);}
+    if(e.key===' ')         {e.preventDefault();flipCard();}
+  }
+  if (jpFlash && jpFlash.classList.contains('active')) {
+    if(e.key==='ArrowLeft') {e.preventDefault();fcNavJP(-1);}
+    if(e.key==='ArrowRight'){e.preventDefault();fcNavJP(1);}
+    if(e.key===' ')         {e.preventDefault();flipCardJP();}
+  }
 });
+
+// ─────────────────────────────────────────────────────────────
+// JAPANESE VOCAB LIST
+// ─────────────────────────────────────────────────────────────
+let expandedWordJP = null;
+
+function renderVocabListJP() {
+  const wrap = document.getElementById('vocabTableWrapJP');
+  if (!wrap) return;
+  const q = (document.getElementById('vocabSearchJP')?.value || '').toLowerCase();
+  const filtered = vocabLogJP.filter(v =>
+    v.word.toLowerCase().includes(q) ||
+    (v.meaning||'').toLowerCase().includes(q) ||
+    (v.reading||'').toLowerCase().includes(q)
+  );
+  if (filtered.length === 0) {
+    wrap.innerHTML = `<div class="empty-state" style="flex:none;padding:3rem 0;">
+      <div class="empty-icon">📭</div>
+      <div class="empty-title">${q ? 'Không tìm thấy' : 'Chưa có từ nào'}</div>
+      <div class="empty-sub">${q ? 'Thử từ khóa khác.' : 'Tra từ trong tab 🇯🇵 Japanese.'}</div>
+    </div>`; return;
+  }
+  const list = filtered.slice().reverse();
+  let html = `<table class="vocab-table">
+    <thead><tr>
+      <th>#</th><th>Từ tiếng Nhật</th><th>Nghĩa</th><th>Cách đọc</th><th>Ngày học</th><th></th>
+    </tr></thead><tbody>`;
+  list.forEach((v, i) => {
+    const date = v.date ? new Date(v.date).toLocaleDateString('vi-VN') : '—';
+    const isOpen = expandedWordJP === v.word;
+    const sw = v.word.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    html += `<tr class="vocab-row-main ${isOpen?'row-open':''}" onclick="toggleExpandJP('${sw}')">
+      <td style="color:var(--muted);font-size:12px;">${list.length-i}</td>
+      <td>
+        <span style="display:inline-flex;align-items:center;gap:6px;">
+          <strong style="color:var(--accent-jp);font-family:'Noto Sans JP',sans-serif;">${escapeHtml(v.word)}</strong>
+          <button class="speak-btn" style="border-color:rgba(232,96,122,0.3);color:var(--accent-jp);" title="Phát âm" onclick="speakWord('${sw}','ja-JP',this);event.stopPropagation()">🔊</button>
+        </span>
+      </td>
+      <td>${escapeHtml(v.meaning||'')}</td>
+      <td style="color:var(--muted);font-size:12px;font-family:'Noto Sans JP',sans-serif;">${escapeHtml(v.reading||'')}</td>
+      <td style="color:var(--muted);font-size:12px;">${date}</td>
+      <td style="white-space:nowrap;">
+        <span style="color:var(--muted);font-size:11px;margin-right:6px;">${isOpen?'▲':'▼'}</span>
+        <button onclick="deleteWordJP('${sw}');event.stopPropagation()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:2px 4px;">✕</button>
+      </td></tr>`;
+    if (isOpen) {
+      html += `<tr class="vocab-row-detail"><td colspan="6"><div class="vocab-detail-box">
+        ${v.example ? `<div class="vd-row"><span class="vd-label">💬 Ví dụ</span><span class="vd-val example-text" style="font-family:'Noto Sans JP',sans-serif;">${escapeHtml(v.example)}</span><button class="speak-btn speak-btn-sm" style="border-color:rgba(232,96,122,0.3);color:var(--accent-jp);" title="Phát âm ví dụ" onclick="speakWord(${JSON.stringify(v.example)},'ja-JP',this)">🔊</button></div>` : ''}
+        ${v.type    ? `<div class="vd-row"><span class="vd-label">📝 Loại từ</span><span class="vd-val">${escapeHtml(v.type)}</span></div>` : ''}
+        ${!v.example&&!v.type ? `<div style="color:var(--muted);font-size:13px;">Không có dữ liệu mở rộng.</div>` : ''}
+      </div></td></tr>`;
+    }
+  });
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
+}
+
+function toggleExpandJP(word) { expandedWordJP = expandedWordJP===word?null:word; renderVocabListJP(); }
+
+function deleteWordJP(word) {
+  if (expandedWordJP===word) expandedWordJP=null;
+  vocabLogJP = vocabLogJP.filter(v=>v.word!==word);
+  document.getElementById('jpCount').textContent = vocabLogJP.length;
+  saveLocalCache(); renderVocabListJP(); deleteWordFromCloudJP(word);
+  showToast(`🗑️ Đã xóa "<strong>${word}</strong>"`, 'info');
+}
+
+function exportVocabCSVJP() {
+  if (!vocabLogJP.length) { showToast('Chưa có từ nào!','warn'); return; }
+  const rows = [['Word','Meaning','Reading','Example','Type','Date']].concat(
+    vocabLogJP.map(v=>[v.word,v.meaning||'',v.reading||'',v.example||'',v.type||'',
+      v.date?new Date(v.date).toLocaleDateString('vi-VN'):''])
+  );
+  const csv = rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
+  a.download = `vocab_japanese_${new Date().toISOString().split('T')[0]}.csv`; a.click();
+}
+
+// ─────────────────────────────────────────────────────────────
+// JAPANESE FLASHCARD ENGINE
+// ─────────────────────────────────────────────────────────────
+let fcDeckJP=[],fcIndexJP=0,fcFlippedJP=false,fcCorrectJP=0,fcWrongJP=0,fcWrongWordsJP=[];
+let fcSelectedDayJP='all';
+
+function buildDayPillsJP() {
+  const pills=document.getElementById('fc-day-pills-jp');
+  if (!pills) return;
+  const daySet=new Set(vocabLogJP.map(v=>toDateKey(v.date)));
+  const days=['all',...[...daySet].sort().reverse()];
+  pills.innerHTML=days.map(day=>{
+    const count=day==='all'?vocabLogJP.length:vocabLogJP.filter(v=>toDateKey(v.date)===day).length;
+    return `<button class="fc-day-pill ${fcSelectedDayJP===day?'active':''}" style="${fcSelectedDayJP===day?'background:rgba(232,96,122,0.2);border-color:var(--accent-jp);color:var(--accent-jp);':''}" onclick="selectDayJP('${day}')">
+      ${formatDayLabel(day)} <span class="fc-day-count">${count}</span>
+    </button>`;
+  }).join('');
+}
+
+function selectDayJP(day) { fcSelectedDayJP=day; buildDayPillsJP(); startFlashcardsJP(false); }
+
+function getFilteredDeckJP(shuffle=false) {
+  const words=fcSelectedDayJP==='all'
+    ?[...vocabLogJP]
+    :vocabLogJP.filter(v=>toDateKey(v.date)===fcSelectedDayJP);
+  return shuffle?words.sort(()=>Math.random()-0.5):words.slice().reverse();
+}
+
+function startFlashcardsJP(shuffle=false,deck=null) {
+  buildDayPillsJP();
+  const words=deck||getFilteredDeckJP(shuffle);
+  if (!words.length) {
+    document.getElementById('fc-empty-jp').style.display='flex';
+    document.getElementById('fc-main-jp').style.display='none';
+    document.getElementById('fc-results-jp').style.display='none'; return;
+  }
+  fcDeckJP=words; fcIndexJP=fcCorrectJP=fcWrongJP=0; fcWrongWordsJP=[];
+  document.getElementById('fc-empty-jp').style.display='none';
+  document.getElementById('fc-results-jp').style.display='none';
+  document.getElementById('fc-main-jp').style.display='flex';
+  showCardJP();
+}
+
+function reviewWrongJP() {
+  if (!fcWrongWordsJP.length){showToast('Không có từ nào cần ôn lại!','ok');return;}
+  startFlashcardsJP(true,fcWrongWordsJP);
+}
+
+function showCardJP() {
+  if (fcIndexJP>=fcDeckJP.length){showResultsJP();return;}
+  const v=fcDeckJP[fcIndexJP];
+  document.getElementById('fc-word-jp').textContent=v.word;
+  const readEl=document.getElementById('fc-reading-jp');
+  if(readEl) readEl.textContent=v.reading||'';
+  document.getElementById('fc-meaning-jp').textContent=v.meaning||'—';
+  const exEl=document.getElementById('fc-example-jp');
+  const tyEl=document.getElementById('fc-type-jp');
+  exEl.style.display=v.example?'flex':'none';
+  tyEl.style.display=v.type?'flex':'none';
+  if(v.example) document.getElementById('fc-example-val-jp').textContent=v.example;
+  if(v.type)    document.getElementById('fc-type-val-jp').textContent=v.type;
+  document.getElementById('fc-progress-jp').textContent=`${fcIndexJP+1} / ${fcDeckJP.length}`;
+  const pct=((fcIndexJP+1)/fcDeckJP.length*100).toFixed(1);
+  document.getElementById('fc-progress-bar-jp').style.width=pct+'%';
+  const prevBtn=document.getElementById('fc-prev-btn-jp');
+  const nextBtn=document.getElementById('fc-next-btn-jp');
+  if(prevBtn) prevBtn.disabled=fcIndexJP===0;
+  if(nextBtn) nextBtn.disabled=fcIndexJP>=fcDeckJP.length-1;
+  fcFlippedJP=false;
+  document.getElementById('fc-card-jp').classList.remove('flipped');
+  document.getElementById('fc-actions-jp').style.display='none';
+  document.getElementById('fc-hint-reveal-jp').style.display='block';
+  const speakBtn=document.getElementById('fc-speak-word-jp');
+  const speakExBtn=document.getElementById('fc-speak-example-jp');
+  if(speakBtn)   speakBtn.setAttribute('data-word',v.word);
+  if(speakExBtn) speakExBtn.setAttribute('data-word',v.example||'');
+  if(window.speechSynthesis){
+    window.speechSynthesis.cancel();
+    setTimeout(()=>speakWord(v.word,'ja-JP'),200);
+  }
+}
+
+function flipCardJP() {
+  fcFlippedJP=!fcFlippedJP;
+  document.getElementById('fc-card-jp').classList.toggle('flipped',fcFlippedJP);
+  document.getElementById('fc-actions-jp').style.display=fcFlippedJP?'flex':'none';
+  document.getElementById('fc-hint-reveal-jp').style.display=fcFlippedJP?'none':'block';
+}
+
+function fcNavJP(dir) {
+  const next=fcIndexJP+dir;
+  if(next<0||next>=fcDeckJP.length) return;
+  fcIndexJP=next; showCardJP();
+}
+
+function fcAnswerJP(correct) {
+  if(correct){fcCorrectJP++;showToast('✓ Nhớ rồi!','ok');}
+  else{fcWrongJP++;fcWrongWordsJP.push(fcDeckJP[fcIndexJP]);showToast('✗ Cần học thêm!','dup');}
+  if(fcIndexJP<fcDeckJP.length-1){fcIndexJP++;setTimeout(showCardJP,300);}
+  else setTimeout(showResultsJP,500);
+}
+
+function showResultsJP() {
+  document.getElementById('fc-main-jp').style.display='none';
+  document.getElementById('fc-results-jp').style.display='flex';
+  document.getElementById('fc-correct-count-jp').textContent=fcCorrectJP;
+  document.getElementById('fc-wrong-count-jp').textContent=fcWrongJP;
+  document.getElementById('fc-retry-wrong-btn-jp').style.display=fcWrongJP>0?'block':'none';
+}
 
 // ─────────────────────────────────────────────────────────────
 // MODEL SELECTION
@@ -588,18 +904,59 @@ function parseMeta(text) {
 // ─────────────────────────────────────────────────────────────
 // TAB / CHAT
 // ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// NAVIGATION — tree sidebar + page switching
+// ─────────────────────────────────────────────────────────────
+const ALL_PAGES = ['en-dict','en-vocab','en-flash','jp-dict','jp-vocab','jp-flash','settings'];
+let groupOpen = { en: true, jp: false };
+
+function toggleGroup(lang) {
+  groupOpen[lang] = !groupOpen[lang];
+  const children = document.getElementById('children-'+lang);
+  const arrow    = document.getElementById('arrow-'+lang);
+  if (children) children.style.display = groupOpen[lang] ? 'flex' : 'none';
+  if (arrow)    arrow.textContent = groupOpen[lang] ? '▾' : '▸';
+}
+
+function switchPage(page) {
+  // Hide all panels
+  ALL_PAGES.forEach(p => {
+    const el = document.getElementById('tab-'+p);
+    if (el) el.classList.remove('active');
+  });
+  // Remove active from all nav children & group headers
+  document.querySelectorAll('.nav-child').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.nav-group-header').forEach(b => b.classList.remove('active'));
+
+  // Show target panel
+  const panel = document.getElementById('tab-'+page);
+  if (panel) panel.classList.add('active');
+
+  // Activate nav child
+  const btn = document.getElementById('nav-'+page);
+  if (btn) btn.classList.add('active');
+
+  // Activate parent group header too
+  const lang = page.startsWith('jp') ? 'jp' : 'en';
+  const groupBtn = document.getElementById('nav-group-'+lang);
+  if (groupBtn) groupBtn.classList.add('active');
+
+  // Ensure parent group is open
+  if (!groupOpen[lang]) toggleGroup(lang);
+
+  // Side effects
+  if (page === 'en-vocab') renderVocabList();
+  if (page === 'jp-vocab') renderVocabListJP();
+  if (page === 'en-flash') { buildDayPills(); if(fcDeck.length===0||fcIndex>=fcDeck.length) startFlashcards(false); }
+  if (page === 'jp-flash') { buildDayPillsJP(); if(fcDeckJP.length===0||fcIndexJP>=fcDeckJP.length) startFlashcardsJP(false); }
+}
+
+// Legacy compatibility shim used by old references
 function switchTab(tab) {
-  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active','trans','vocab-nav','flash-nav','jp-nav'));
-  document.getElementById('tab-'+tab).classList.add('active');
-  const btn=document.getElementById('nav-'+tab);
-  if(btn){
-    btn.classList.add('active');
-    const cls = tab==='translate'?'trans':tab==='vocab'?'vocab-nav':tab==='flashcard'?'flash-nav':tab==='japanese'?'jp-nav':'';
-    if(cls) btn.classList.add(cls);
-  }
-  if(tab==='vocab') renderVocabList();
-  if(tab==='flashcard'){buildDayPills();if(fcDeck.length===0||fcIndex>=fcDeck.length) startFlashcards(false);}
+  if (tab === 'translate') switchPage('en-dict');
+  else if (tab === 'japanese') switchPage('jp-dict');
+  else if (tab === 'settings') { openSettings(); }
+  else switchPage(tab);
 }
 
 function handleKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();}}
@@ -641,6 +998,7 @@ function appendMsg(role, text) {
     document.getElementById('enCount').textContent=vocabLog.length;
     saveLocalCache();
     buildDayPills();
+    buildDayPillsJP();
   }
 }
 
@@ -703,8 +1061,10 @@ function appendMsgJP(role, text) {
     if(exists){showToast(`📌 Từ "<strong>${meta.word}</strong>" đã có trong danh sách!`,'dup');return;}
     const entry={word:meta.word,meaning:meta.meaning,reading:meta.reading,example:meta.example,type:meta.type,date:new Date().toISOString()};
     vocabLogJP.push(entry);
+    saveWordToCloudJP(entry);
     document.getElementById('jpCount').textContent=vocabLogJP.length;
     saveLocalCache();
+    buildDayPillsJP();
     showToast(`✅ Đã lưu "<strong>${meta.word}</strong>" (${meta.reading})`,'ok');
   }
 }
@@ -741,7 +1101,7 @@ const ADMIN_PASS = '123';
 let adminUnlocked = false;
 
 function openSettings() {
-  if (adminUnlocked) { switchTab('settings'); return; }
+  if (adminUnlocked) { switchPage('settings'); return; }
   const overlay = document.getElementById('pwd-overlay');
   overlay.style.display = 'flex';
   document.getElementById('pwd-input').value = '';
@@ -754,7 +1114,7 @@ function checkPassword() {
   if (val === ADMIN_PASS) {
     adminUnlocked = true;
     closePwdModal();
-    switchTab('settings');
+    switchPage('settings');
   } else {
     const err = document.getElementById('pwd-error');
     err.style.display = 'block';
@@ -787,9 +1147,12 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   if (sbReady()) {
     document.getElementById('dbStatusRow').style.display='flex';
-    document.getElementById('dbCount').textContent='…';
+    document.getElementById('dbCountEn').textContent='…';
+    document.getElementById('dbStatusRowJP').style.display='flex';
+    document.getElementById('dbCountJP').textContent='…';
     await loadApiKeysFromCloud();
     await loadVocabFromCloud();
+    await loadVocabFromCloudJP();
   } else {
     updateStatus(false,'Supabase not configured in code');
   }

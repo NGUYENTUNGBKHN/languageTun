@@ -1339,3 +1339,264 @@ header {
   25%      { transform: translateX(-8px); }
   75%      { transform: translateX(8px); }
 }
+/* ─── Voice Pronunciation Buttons ─────────────────────────── */
+.speak-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(192, 122, 247, 0.10);
+  border: 1px solid rgba(192, 122, 247, 0.25);
+  border-radius: 6px;
+  color: var(--accent-trans);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 6px;
+  line-height: 1;
+  transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+  flex-shrink: 0;
+  user-select: none;
+}
+.speak-btn:hover {
+  background: rgba(192, 122, 247, 0.22);
+  box-shadow: 0 0 8px rgba(192, 122, 247, 0.3);
+  transform: scale(1.08);
+}
+.speak-btn:active { transform: scale(0.95); }
+.speak-btn.speaking {
+  background: rgba(192, 122, 247, 0.30);
+  box-shadow: 0 0 12px rgba(192, 122, 247, 0.5);
+  animation: speakPulse 0.7s ease-in-out infinite alternate;
+}
+@keyframes speakPulse {
+  from { box-shadow: 0 0 6px rgba(192,122,247,0.3); }
+  to   { box-shadow: 0 0 16px rgba(192,122,247,0.7); }
+}
+
+/* Small variant (inside details / example rows) */
+.speak-btn-sm {
+  font-size: 12px;
+  padding: 1px 5px;
+  border-radius: 5px;
+}
+
+/* Flashcard front – larger centered button */
+.speak-btn-fc {
+  font-size: 18px;
+  padding: 5px 12px;
+  border-radius: 10px;
+  margin-top: 6px;
+}
+
+/* Keep vd-row aligned when speak button added */
+.vd-row { align-items: flex-start; gap: 8px; }
+
+/* ─── Study Tab Layout ─────────────────────────────────────── */
+.study-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Language toggle bar (EN / JP) */
+.study-lang-bar {
+  display: flex;
+  gap: 6px;
+  padding: 14px 20px 0;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.study-lang-btn {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 8px 18px 10px;
+  border-radius: 8px 8px 0 0;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+.study-lang-btn:hover { color: var(--text); background: var(--surface2); }
+.study-lang-btn.active {
+  color: var(--text);
+  border-bottom-color: var(--accent-trans);
+  background: rgba(192,122,247,0.08);
+}
+#study-lang-jp.active { border-bottom-color: var(--accent-jp); background: rgba(232,96,122,0.08); }
+
+/* Pane container */
+.study-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* Vocab / Flashcard section switcher */
+.study-section-bar {
+  display: flex;
+  gap: 4px;
+  padding: 10px 16px 6px;
+  flex-shrink: 0;
+}
+
+.study-sec-btn {
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 5px 14px;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+.study-sec-btn:hover { color: var(--text); border-color: var(--border2); }
+.study-sec-btn.active {
+  background: rgba(192,122,247,0.15);
+  border-color: rgba(192,122,247,0.4);
+  color: var(--accent-trans);
+}
+#study-sec-jp-vocab.active,
+#study-sec-jp-flash.active {
+  background: rgba(232,96,122,0.12);
+  border-color: rgba(232,96,122,0.35);
+  color: var(--accent-jp);
+}
+
+/* Each section (vocab table or flashcard panel) */
+.study-section {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* Nav button study-nav styling */
+.nav-btn.study-nav.active {
+  background: rgba(79,201,122,0.12);
+  color: #4fc97a;
+  border-left: 2px solid #4fc97a;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   TREE NAV — Group headers + children
+══════════════════════════════════════════════════════════════ */
+.nav-group {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 2px;
+}
+
+.nav-group-solo { margin-top: 4px; }
+
+.nav-group-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  border-radius: 10px;
+  color: var(--muted);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  padding: 9px 12px;
+  text-align: left;
+  transition: background 0.15s, color 0.15s;
+  width: 100%;
+  letter-spacing: 0.01em;
+}
+.nav-group-header:hover { background: var(--surface2); color: var(--text); }
+.nav-group-header.active { color: var(--text); }
+
+.nav-group-arrow {
+  font-size: 10px;
+  width: 12px;
+  flex-shrink: 0;
+  color: var(--muted);
+  transition: transform 0.2s;
+}
+.nav-group-flag  { font-size: 16px; flex-shrink: 0; }
+.nav-group-label { flex: 1; }
+
+/* Children list */
+.nav-children {
+  display: flex;
+  flex-direction: column;
+  padding-left: 14px;
+  gap: 1px;
+  overflow: hidden;
+}
+
+.nav-child {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  color: var(--muted);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  padding: 7px 10px 7px 6px;
+  text-align: left;
+  transition: background 0.12s, color 0.12s;
+  width: 100%;
+  position: relative;
+}
+.nav-child:hover { background: var(--surface2); color: var(--text); }
+.nav-child.active {
+  background: rgba(192,122,247,0.12);
+  color: var(--accent-trans);
+}
+
+/* EN active uses purple, JP active uses pink */
+#nav-jp-dict.active,
+#nav-jp-vocab.active,
+#nav-jp-flash.active {
+  background: rgba(232,96,122,0.12);
+  color: var(--accent-jp);
+}
+
+/* Connector line beside child */
+.nav-child-line {
+  display: inline-block;
+  width: 2px;
+  height: 14px;
+  background: var(--border2);
+  border-radius: 2px;
+  flex-shrink: 0;
+  margin-right: 2px;
+}
+.nav-child.active .nav-child-line {
+  background: var(--accent-trans);
+}
+#nav-jp-dict.active .nav-child-line,
+#nav-jp-vocab.active .nav-child-line,
+#nav-jp-flash.active .nav-child-line {
+  background: var(--accent-jp);
+}
+
+/* Count badge */
+.nav-child-count {
+  margin-left: auto;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  font-size: 11px;
+  padding: 1px 7px;
+  color: var(--muted);
+}
+
+/* JP flashcard card wrap accent */
+.fc-card-wrap-jp { border-color: rgba(232,96,122,0.2); }
