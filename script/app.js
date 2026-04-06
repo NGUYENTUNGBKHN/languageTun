@@ -820,7 +820,7 @@ function showResultsJP() {
 // MODEL SELECTION
 // ─────────────────────────────────────────────────────────────
 const MODEL_INFO = {
-  gemini: { label:'✨ Gemini 2.5 Flash' },
+  gemini: { label:'✨ Gemma 4 30B' },
   gpt:    { label:'🤖 GPT-4o mini' },
   claude: { label:'⚡ Claude Sonnet' }
 };
@@ -851,12 +851,17 @@ async function callAPI(system, messages) {
   if (!key) throw new Error('No API key for '+currentModel+'! Go to Settings to enter one.');
 
   if (currentModel==='gemini') {
+    const gemmaContents = messages.length > 0
+      ? [
+          { role: 'user', parts: [{ text: system + '\n\n' + messages[0].content }] },
+          ...messages.slice(1).map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] }))
+        ]
+      : [{ role: 'user', parts: [{ text: system }] }];
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemma-3-27b-it:generateContent?key=${key}`,
       { method:'POST', headers:{'Content-Type':'application/json'},
         body:JSON.stringify({
-          system_instruction:{parts:[{text:system}]},
-          contents:messages.map(m=>({role:m.role==='assistant'?'model':'user',parts:[{text:m.content}]})),
+          contents: gemmaContents,
           generationConfig:{maxOutputTokens:1200}
         })}
     );
