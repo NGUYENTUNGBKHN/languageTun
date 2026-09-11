@@ -14,66 +14,41 @@ let jpCloudAvailable = true;
 let jpCloudWarningShown = false;
 
 // API keys loaded from Supabase settings table
-let apiKeys = { gemini: '', gpt: '', claude: '' };
+let apiKeys = { gemini: '', groq: '', openrouter: '', gpt: '', claude: '' };
 
 // ─────────────────────────────────────────────────────────────
 // SYSTEM PROMPT
 // ─────────────────────────────────────────────────────────────
-const DICT_SYSTEM = `You are an English learning assistant for Vietnamese people. Your tasks:
+const DICT_SYSTEM = `You are a precise English-Vietnamese Dictionary assistant for Vietnamese learners.
 
-1. When the user enters an English word:
-   - Translate to Vietnamese
-   - Provide IPA pronunciation (e.g.: /ɪˈfɛm.ər.əl/)
-   - Classify part of speech (noun, verb, adjective...)
-   - Give 2–3 example sentences using the word in spoken or written English
-   - Provide synonyms and antonyms if available
-   - Add relevant grammar notes if needed
-   - If relevant, incorporate examples with previously learned words
+CRITICAL FORMAT RULES:
+- DO NOT start with conversational greetings (e.g. "Chào bạn!", "Dưới đây là...").
+- Start DIRECTLY with the dictionary word header.
+- Provide: IPA pronunciation, Part of Speech, Vietnamese meaning, 2-3 English example sentences with Vietnamese translations, Synonyms/Antonyms.
 
-2. When the user enters a Vietnamese word:
-   - Translate to English
-   - Provide IPA pronunciation of the English word
-   - Give example sentences using that English word
-   - Provide synonyms and antonyms in English
-
-3. If the user misspells: auto-correct and note "You may have meant: [correct word]".
-
-4. Format responses clearly, use emoji, easy to read.
-
-5. IMPORTANT — At the end of each response, add exactly 4 metadata lines:
-[VOCAB:English word:short Vietnamese meaning]
-[EXAMPLE:one best English example sentence illustrating the word]
-[SYN:synonym 1, synonym 2, synonym 3]
+MANDATORY ENDING METADATA:
+At the absolute end of your response, output EXACTLY these 4 lines with NO markdown backticks or bolding around them:
+[VOCAB:English_word:short_Vietnamese_meaning]
+[EXAMPLE:one best English example sentence]
+[SYN:synonym 1, synonym 2]
 [ANT:antonym 1, antonym 2]
 
-If no synonyms or antonyms, leave empty: [SYN:] or [ANT:]
-Respond in Vietnamese, only example sentences in English.`;
+If no synonyms/antonyms exist, leave them empty: [SYN:] or [ANT:]
+Respond in Vietnamese, example sentences in English.`;
 
-const JP_SYSTEM = `Bạn là trợ lý học tiếng Nhật cho người Việt Nam. Nhiệm vụ của bạn:
+const JP_SYSTEM = `Bạn là trợ lý từ điển Nhật - Việt chính xác cho người Việt Nam.
 
-1. Khi người dùng nhập từ tiếng Nhật (kanji, hiragana, katakana, romaji):
-   - Dịch nghĩa sang tiếng Việt
-   - Cung cấp cách đọc: hiragana + romaji (ví dụ: たべる / taberu)
-   - Phân loại từ loại (động từ, tính từ, danh từ, trợ từ...)
-   - Nhóm động từ (Group 1 / 2 / 3) nếu là động từ
-   - Cho 2–3 câu ví dụ bằng tiếng Nhật (kèm furigana và dịch tiếng Việt)
-   - Ghi chú ngữ pháp quan trọng nếu cần (ví dụ: cách chia, mẫu câu phổ biến)
-   - Từ đồng nghĩa / trái nghĩa tiếng Nhật nếu có
+QUY TẮC ĐỊNH DẠNG BẮT BUỘC:
+- KHÔNG dùng câu chào hỏi hay xã giao ("Chào bạn!", "Dưới đây là...").
+- Bắt đầu TRỰC TIẾP bằng tiêu đề từ vựng.
+- Cung cấp: Cách đọc Hiragana + Romaji, Từ loại/Nhóm động từ, Nghĩa tiếng Việt, 2-3 câu ví dụ tiếng Nhật có dịch tiếng Việt.
 
-2. Khi người dùng nhập từ tiếng Việt:
-   - Dịch sang tiếng Nhật (kanji + hiragana)
-   - Cung cấp romaji
-   - Cho 1–2 câu ví dụ
-
-3. Nếu người dùng gõ sai: tự động sửa và ghi chú.
-
-4. Format rõ ràng, dùng emoji, dễ đọc.
-
-5. QUAN TRỌNG — Cuối mỗi câu trả lời, thêm đúng 4 dòng metadata:
-[VOCAB_JP:từ tiếng Nhật:nghĩa tiếng Việt ngắn gọn]
+METADATA BẮT BUỘC Ở CUỐI:
+Ở cuối bài trả lời BẮT BUỘC có đúng 4 dòng sau, KHÔNG dùng markdown hay backticks:
+[VOCAB_JP:từ_tiếng_Nhật:nghĩa_tiếng_Việt_ngắn]
 [READING:hiragana/romaji]
-[EXAMPLE_JP:một câu ví dụ tiếng Nhật hay nhất]
-[TYPE:品詞 (loại từ bằng tiếng Việt)]
+[EXAMPLE_JP:câu_ví_dụ_tiếng_Nhật]
+[TYPE:loại_từ]
 
 Trả lời bằng tiếng Việt, câu ví dụ bằng tiếng Nhật.`;
 
@@ -154,10 +129,12 @@ function handleJPCloudMissingTable(res) {
 async function saveApiKeysToCloud() {
   if (!sbReady()) return;
   const rows = [
-    { key: 'api_gemini', value: apiKeys.gemini },
-    { key: 'api_gpt',    value: apiKeys.gpt },
-    { key: 'api_claude', value: apiKeys.claude },
-    { key: 'model',      value: currentModel }
+    { key: 'api_gemini',     value: apiKeys.gemini },
+    { key: 'api_groq',       value: apiKeys.groq },
+    { key: 'api_openrouter', value: apiKeys.openrouter },
+    { key: 'api_gpt',        value: apiKeys.gpt },
+    { key: 'api_claude',     value: apiKeys.claude },
+    { key: 'model',          value: currentModel }
   ];
   try {
     await sbFetch('settings', 'POST', '', rows);
@@ -167,34 +144,48 @@ async function saveApiKeysToCloud() {
 async function loadApiKeysFromCloud() {
   if (!sbReady()) return;
   try {
-    const res = await sbFetch('settings', 'GET', '?key=in.(api_gemini,api_gpt,api_claude,model)');
-    if (!res.ok) return;
+    const res = await sbFetch('settings', 'GET', '?key=in.(api_gemini,api_groq,api_openrouter,api_gpt,api_claude,model)');
+    if (!res.ok) {
+      console.warn('Failed to load settings from Supabase cloud:', res.status);
+      return;
+    }
     const rows = await res.json();
     rows.forEach(r => {
-      if (r.key === 'api_gemini') apiKeys.gemini = r.value || '';
-      if (r.key === 'api_gpt')    apiKeys.gpt    = r.value || '';
-      if (r.key === 'api_claude') apiKeys.claude  = r.value || '';
-      if (r.key === 'model')      currentModel   = r.value || 'gemini';
+      if (r.key === 'api_gemini')     apiKeys.gemini     = r.value || '';
+      if (r.key === 'api_groq')       apiKeys.groq       = r.value || '';
+      if (r.key === 'api_openrouter') apiKeys.openrouter = r.value || '';
+      if (r.key === 'api_gpt')        apiKeys.gpt        = r.value || '';
+      if (r.key === 'api_claude')     apiKeys.claude     = r.value || '';
+      if (r.key === 'model')          currentModel       = r.value || 'gemini';
     });
-    // Populate Settings UI
-    const gEl = document.getElementById('key-gemini');
-    const pEl = document.getElementById('key-gpt');
-    const cEl = document.getElementById('key-claude');
-    if (gEl && apiKeys.gemini) gEl.value = apiKeys.gemini;
-    if (pEl && apiKeys.gpt)    pEl.value = apiKeys.gpt;
-    if (cEl && apiKeys.claude) cEl.value = apiKeys.claude;
+    // Populate Settings UI from cloud
+    const gEl  = document.getElementById('key-gemini');
+    const grEl = document.getElementById('key-groq');
+    const orEl = document.getElementById('key-openrouter');
+    const pEl  = document.getElementById('key-gpt');
+    const cEl  = document.getElementById('key-claude');
+    if (gEl)  gEl.value  = apiKeys.gemini || '';
+    if (grEl) grEl.value = apiKeys.groq || '';
+    if (orEl) orEl.value = apiKeys.openrouter || '';
+    if (pEl)  pEl.value  = apiKeys.gpt || '';
+    if (cEl)  cEl.value  = apiKeys.claude || '';
     setModel(currentModel);
     updateKeyStatus();
-  } catch(e) { console.warn('Settings load failed:', e); }
+  } catch(e) { console.warn('Settings load from cloud failed:', e); }
 }
 
 function getActiveKey() { return apiKeys[currentModel] || ''; }
 
 function updateKeyStatus() {
   const hasKey = !!getActiveKey();
-  updateStatus(hasKey, hasKey
-    ? { gemini:'✓ Gemini ready', gpt:'✓ GPT ready', claude:'✓ Claude ready' }[currentModel]
-    : 'No API key');
+  const statusMap = {
+    gemini:     '✓ Gemini ready',
+    groq:       '✓ Groq ready',
+    openrouter: '✓ OpenRouter ready',
+    gpt:        '✓ GPT ready',
+    claude:     '✓ Claude ready'
+  };
+  updateStatus(hasKey, hasKey ? (statusMap[currentModel] || '✓ Ready') : 'No API key');
 }
 
 // ─── Vocabulary table ────────────────────────────────────────
@@ -319,10 +310,14 @@ async function refreshCloudCountJP() {
 }
 
 // ─────────────────────────────────────────────────────────────
-// LOCAL CACHE  (vocab only, no keys)
+// LOCAL CACHE  (vocab logs only, no api keys)
 // ─────────────────────────────────────────────────────────────
 function saveLocalCache() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify({ vocabLog, vocabLogJP, model: currentModel }));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({
+    vocabLog,
+    vocabLogJP,
+    model: currentModel
+  }));
 }
 
 function loadLocalCache() {
@@ -341,22 +336,29 @@ function loadLocalCache() {
 // SAVE API KEYS from UI
 // ─────────────────────────────────────────────────────────────
 async function saveAllKeys() {
-  const g = document.getElementById('key-gemini').value.trim();
-  const p = document.getElementById('key-gpt').value.trim();
-  const c = document.getElementById('key-claude').value.trim();
+  const g  = document.getElementById('key-gemini')?.value.trim() || '';
+  const gr = document.getElementById('key-groq')?.value.trim() || '';
+  const or = document.getElementById('key-openrouter')?.value.trim() || '';
+  const p  = document.getElementById('key-gpt')?.value.trim() || '';
+  const c  = document.getElementById('key-claude')?.value.trim() || '';
 
   // Basic validation
   const errs = [];
-  if (g && !g.startsWith('AIza'))   errs.push('Gemini key must start with AIza...');
-  if (p && !p.startsWith('sk-') || (p && p.startsWith('sk-ant-'))) {
-    if (p && (!p.startsWith('sk-') || p.startsWith('sk-ant-'))) errs.push('GPT key must start with sk-...');
+  if (g && !g.startsWith('AIza')) errs.push('Gemini key must start with AIza...');
+  if (gr && !gr.startsWith('gsk_')) errs.push('Groq key must start with gsk_...');
+  if (p && (!p.startsWith('sk-') || p.startsWith('sk-ant-') || p.startsWith('sk-or-'))) {
+    errs.push('GPT key must start with sk-...');
   }
   if (c && !c.startsWith('sk-ant-')) errs.push('Claude key must start with sk-ant-...');
   if (errs.length) { showToast('⚠️ ' + errs[0], 'warn'); return; }
 
-  apiKeys.gemini = g;
-  apiKeys.gpt    = p;
-  apiKeys.claude = c;
+  apiKeys.gemini     = g;
+  apiKeys.groq       = gr;
+  apiKeys.openrouter = or;
+  apiKeys.gpt        = p;
+  apiKeys.claude     = c;
+
+  saveLocalCache();
 
   const btn = document.getElementById('saveKeysBtn');
   btn.textContent = '🔄 Saving...';
@@ -366,7 +368,7 @@ async function saveAllKeys() {
     await saveApiKeysToCloud();
     showToast('✅ Saved API keys to cloud!', 'ok');
   } else {
-    showToast('⚠️ Supabase not configured — keys saved temporarily', 'warn');
+    showToast('⚠️ Supabase not configured — keys not saved', 'warn');
   }
 
   updateKeyStatus();
@@ -820,26 +822,28 @@ function showResultsJP() {
 // MODEL SELECTION
 // ─────────────────────────────────────────────────────────────
 const MODEL_INFO = {
-  gemini: { label:'✨ Gemma 4 30B' },
-  gpt:    { label:'🤖 GPT-4o mini' },
-  claude: { label:'⚡ Claude Sonnet' }
+  gemini:     { label:'✨ Gemini 3.6 Flash' },
+  groq:       { label:'⚡ Groq (Llama 3.3 70B)' },
+  openrouter: { label:'🌐 OpenRouter (Free)' },
+  gpt:        { label:'🤖 GPT-4o mini' },
+  claude:     { label:'⚡ Claude Sonnet' }
 };
 
 function setModel(m) {
-  currentModel=m;
-  ['gemini','gpt','claude'].forEach(id=>{
-    const c=document.getElementById('card-'+id);
-    if(c) c.className='model-card'+(m===id?' selected-'+id:'');
+  currentModel = m;
+  ['gemini','groq','openrouter','gpt','claude'].forEach(id => {
+    const c = document.getElementById('card-' + id);
+    if (c) c.className = 'model-card' + (m === id ? ' selected-' + id : '');
   });
-  document.getElementById('headerModel').textContent=MODEL_INFO[m]?.label||m;
+  document.getElementById('headerModel').textContent = MODEL_INFO[m]?.label || m;
   updateKeyStatus();
   saveLocalCache();
 }
 
 function updateStatus(ok, msg) {
-  ['apiStatus','apiStatusSettings'].forEach(id=>{
-    const el=document.getElementById(id);
-    if(el){el.textContent=msg;el.className='api-status'+(ok?'':' error');}
+  ['apiStatus','apiStatusSettings'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.textContent = msg; el.className = 'api-status' + (ok ? '' : ' error'); }
   });
 }
 
@@ -848,45 +852,112 @@ function updateStatus(ok, msg) {
 // ─────────────────────────────────────────────────────────────
 async function callAPI(system, messages) {
   const key = getActiveKey();
-  if (!key) throw new Error('No API key for '+currentModel+'! Go to Settings to enter one.');
+  if (!key) throw new Error('No API key for ' + currentModel + '! Go to Settings to enter one.');
 
-  if (currentModel==='gemini') {
-    const gemmaContents = messages.length > 0
-      ? [
-          { role: 'user', parts: [{ text: system + '\n\n' + messages[0].content }] },
-          ...messages.slice(1).map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] }))
-        ]
-      : [{ role: 'user', parts: [{ text: system }] }];
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemma-3-27b-it:generateContent?key=${key}`,
-      { method:'POST', headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({
-          contents: gemmaContents,
-          generationConfig:{maxOutputTokens:1200}
-        })}
+  if (currentModel === 'gemini') {
+    const geminiContents = messages.map(m => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }]
+    }));
+
+    const payload = {
+      systemInstruction: {
+        parts: [{ text: system }]
+      },
+      contents: geminiContents,
+      generationConfig: {
+        maxOutputTokens: 1200,
+        temperature: 0.2
+      }
+    };
+    
+    // Primary model: gemini-3.6-flash with fallback to gemini-2.5-flash
+    let res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${key}`,
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }
     );
-    const data=await res.json();
-    if(data.error) throw new Error(data.error.message);
+    if (!res.ok) {
+      res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }
+      );
+    }
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+    if (!data.candidates || !data.candidates[0]?.content?.parts[0]?.text) {
+      throw new Error('Invalid response format from Gemini API.');
+    }
     return data.candidates[0].content.parts[0].text;
 
-  } else if (currentModel==='gpt') {
-    const res = await fetch('https://api.openai.com/v1/chat/completions',{
-      method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
-      body:JSON.stringify({model:'gpt-4o-mini',max_tokens:1200,messages:[{role:'system',content:system},...messages]})
+  } else if (currentModel === 'groq') {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        max_tokens: 1200,
+        temperature: 0.2,
+        messages: [{ role: 'system', content: system }, ...messages]
+      })
     });
-    const data=await res.json();
-    if(data.error) throw new Error(data.error.message);
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message || data.error);
+    return data.choices[0].message.content;
+
+  } else if (currentModel === 'openrouter') {
+    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + key,
+        'HTTP-Referer': window.location.href,
+        'X-Title': 'LanguageTun App'
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.0-flash-lite:free',
+        max_tokens: 1200,
+        temperature: 0.2,
+        messages: [{ role: 'system', content: system }, ...messages]
+      })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message || data.error);
+    return data.choices[0].message.content;
+
+  } else if (currentModel === 'gpt') {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        max_tokens: 1200,
+        temperature: 0.2,
+        messages: [{ role: 'system', content: system }, ...messages]
+      })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
     return data.choices[0].message.content;
 
   } else {
-    const res = await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':key,
-        'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1200,system,messages})
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-3-5-sonnet-20241022',
+        max_tokens: 1200,
+        temperature: 0.2,
+        system,
+        messages
+      })
     });
-    const data=await res.json();
-    if(data.error) throw new Error(data.error.message);
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
     return data.content[0].text;
   }
 }
@@ -895,11 +966,21 @@ async function callAPI(system, messages) {
 // PARSE metadata
 // ─────────────────────────────────────────────────────────────
 function parseMeta(text) {
-  const get = tag => { const m=text.match(new RegExp(`\\[${tag}:(.*?)\\]`)); return m?m[1].trim():''; };
+  const get = tag => {
+    const m = text.match(new RegExp(`\\[\\s*${tag}\\s*:\\s*([\\s\\S]*?)\\]`, 'i'));
+    return m ? m[1].trim() : '';
+  };
   const vocab = get('VOCAB');
+  let word = '';
+  let meaning = '';
+  if (vocab) {
+    const parts = vocab.split(':');
+    word = parts[0] ? parts[0].trim() : '';
+    meaning = parts.slice(1).join(':').trim();
+  }
   return {
-    word:     vocab.split(':')[0].trim(),
-    meaning:  vocab.split(':').slice(1).join(':').trim(),
+    word,
+    meaning,
     example:  get('EXAMPLE'),
     synonyms: get('SYN'),
     antonyms: get('ANT')
@@ -976,31 +1057,40 @@ function formatMarkdown(text){
     .replace(/\n/g,'<br>');
 }
 
-function appendMsg(role, text) {
-  const container=document.getElementById('chat-translate');
-  const empty=container.querySelector('.empty-state');
-  if(empty) empty.remove();
-  const avInfo=role==='user'?['You','user']:['Dic','agent-trans'];
-  const msgDiv=document.createElement('div');
-  msgDiv.className='msg '+(role==='user'?'user':'');
-  const cleanText=text.replace(/\[(VOCAB|EXAMPLE|SYN|ANT):.*?\]/g,'').trim();
-  msgDiv.innerHTML=`
+function appendMsg(role, text, userQuery = '') {
+  const container = document.getElementById('chat-translate');
+  const empty = container.querySelector('.empty-state');
+  if (empty) empty.remove();
+  const avInfo = role === 'user' ? ['You', 'user'] : ['Dic', 'agent-trans'];
+  const msgDiv = document.createElement('div');
+  msgDiv.className = 'msg ' + (role === 'user' ? 'user' : '');
+  const cleanText = text.replace(/\[\s*(VOCAB|EXAMPLE|SYN|ANT)\s*:[\s\S]*?\]/gi, '').trim();
+  msgDiv.innerHTML = `
     <div class="avatar ${avInfo[1]}">${avInfo[0]}</div>
     <div class="bubble ${role==='user'?'user':''}">${role==='assistant'?formatMarkdown(cleanText):escapeHtml(cleanText)}</div>`;
   container.appendChild(msgDiv);
-  container.scrollTop=container.scrollHeight;
+  container.scrollTop = container.scrollHeight;
 
-  if(role==='assistant') {
-    if(!/\[VOCAB:/.test(text)) return;
-    const meta=parseMeta(text);
-    if(!meta.word) return;
-    const exists=vocabLog.find(v=>v.word.toLowerCase()===meta.word.toLowerCase());
-    if(exists){showToast(`📌 Word "<strong>${meta.word}</strong>" already in list!`,'dup');return;}
-    const entry={word:meta.word,meaning:meta.meaning,example:meta.example,synonyms:meta.synonyms,antonyms:meta.antonyms,date:new Date().toISOString()};
+  if (role === 'assistant') {
+    const meta = parseMeta(text);
+    const targetWord = meta.word || userQuery.trim();
+    if (!targetWord) return;
+
+    const exists = vocabLog.find(v => v.word.toLowerCase() === targetWord.toLowerCase());
+    if (exists) {
+      showToast(`📌 Word "<strong>${escapeHtml(targetWord)}</strong>" already in list!`, 'dup');
+      return;
+    }
+    const entry = {
+      word: targetWord,
+      meaning: meta.meaning || '',
+      example: meta.example || '',
+      synonyms: meta.synonyms || '',
+      antonyms: meta.antonyms || '',
+      date: new Date().toISOString()
+    };
     vocabLog.push(entry);
     saveWordToCloud(entry);
-    showToast(`✅ Saved "<strong>${meta.word}</strong>"`,'ok');
-    document.getElementById('enCount').textContent=vocabLog.length;
     saveLocalCache();
     buildDayPills();
     buildDayPillsJP();
