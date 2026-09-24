@@ -52,9 +52,9 @@ alter table vocabulary_jp enable row level security;
 create policy "Allow all" on vocabulary_jp for all using (true) with check (true);
 ```
 
-## How to Get API Keys (Guide)
+## How to Get Free API Keys
 
-LanguageTun supports 5 AI providers. Here is how to get an API key for each platform:
+LanguageTun supports 3 100% Free AI providers:
 
 ### 1. ✨ Google Gemini API (100% Free - Recommended)
 1. Visit [Google AI Studio](https://aistudio.google.com/apikey).
@@ -74,11 +74,16 @@ LanguageTun supports 5 AI providers. Here is how to get an API key for each plat
 3. Click **Create Key**.
 4. Copy the key starting with `sk-or-v1-...` and paste it into LanguageTun **Settings**.
 
-### 4. 🤖 OpenAI GPT-4o mini (Paid / Credit)
-1. Visit [OpenAI Platform API Keys](https://platform.openai.com/api-keys).
-2. Create an API Key starting with `sk-...`.
+## Project Architecture
 
-### 5. ⚡ Anthropic Claude Sonnet (Paid / Credit)
-1. Visit [Anthropic Console](https://console.anthropic.com).
-2. Create an API Key starting with `sk-ant-...`.
+The JavaScript codebase is organized into clean, modular files inside the `script/` directory:
+
+- [script/config.js](file:///e:/Project/AppPC/languageTun/script/config.js): Supabase credentials, global constants, state variables, and AI System Prompts.
+- [script/supabase.js](file:///e:/Project/AppPC/languageTun/script/supabase.js): Supabase REST API helper and cloud vocabulary/settings sync.
+- [script/ai-service.js](file:///e:/Project/AppPC/languageTun/script/ai-service.js): Unified Free AI Model caller (Gemini 3.6 Flash, Groq Llama 3.3 70B, OpenRouter).
+- [script/vocabulary.js](file:///e:/Project/AppPC/languageTun/script/vocabulary.js): LocalStorage caching, vocabulary table rendering, CSV and JSON import/export.
+- [script/flashcard.js](file:///e:/Project/AppPC/languageTun/script/flashcard.js): English & Japanese Flashcards engine logic, date filters, and keyboard shortcuts.
+- [script/dictionary.js](file:///e:/Project/AppPC/languageTun/script/dictionary.js): Chat UI bubbles, metadata parsing, Speech TTS, and lookup event handlers.
+- [script/app.js](file:///e:/Project/AppPC/languageTun/script/app.js): Main application entry point, sidebar tree navigation, modals, and initialization sequence.
+
 

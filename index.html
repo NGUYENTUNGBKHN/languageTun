@@ -326,7 +326,7 @@
 
         <!-- MODEL SELECTOR -->
         <div class="settings-section">
-          <div class="settings-section-title">Select AI Model</div>
+          <div class="settings-section-title">Select AI Model (100% FREE)</div>
           <div class="model-grid">
             <div class="model-card selected-gemini" id="card-gemini" onclick="setModel('gemini')">
               <div class="model-card-icon">✨</div>
@@ -346,27 +346,17 @@
               <div class="model-card-sub">Free Models</div>
               <div class="model-card-badge">FREE</div>
             </div>
-            <div class="model-card" id="card-gpt" onclick="setModel('gpt')">
-              <div class="model-card-icon">🤖</div>
-              <div class="model-card-name">GPT-4o mini</div>
-              <div class="model-card-sub">OpenAI</div>
-            </div>
-            <div class="model-card" id="card-claude" onclick="setModel('claude')">
-              <div class="model-card-icon">⚡</div>
-              <div class="model-card-name">Claude</div>
-              <div class="model-card-sub">Anthropic</div>
-            </div>
           </div>
           <div style="font-size:12px;color:var(--muted);margin-top:4px;">
             <span id="apiStatusSettings" class="api-status error">Not connected</span>
           </div>
         </div>
 
-        <!-- API KEYS — all platforms -->
+        <!-- API KEYS — 100% Free platforms -->
         <div class="settings-section" style="border-color:rgba(192,122,247,0.3);">
           <div class="settings-section-title" style="color:var(--accent-trans)">🔑 API Keys — auto-saved to cloud</div>
           <div style="font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.7;">
-            Enter keys for the platforms you want to use. Keys are encrypted and stored in your Supabase — no need to re-enter each time you open the app.
+            Enter keys for the free AI platforms you want to use. Keys are encrypted and stored in your Supabase cloud settings — no need to re-enter.
           </div>
 
           <!-- Gemini -->
@@ -403,30 +393,6 @@
               </div>
             </div>
             <input type="password" class="settings-input key-input" id="key-openrouter" placeholder="sk-or-v1-...">
-          </div>
-
-          <!-- GPT -->
-          <div class="key-row">
-            <div class="key-row-label">
-              <span class="key-platform-icon">🤖</span>
-              <div>
-                <div class="key-platform-name">GPT-4o mini</div>
-                <a href="https://platform.openai.com/api-keys" target="_blank" class="key-link">platform.openai.com →</a>
-              </div>
-            </div>
-            <input type="password" class="settings-input key-input" id="key-gpt" placeholder="sk-...">
-          </div>
-
-          <!-- Claude -->
-          <div class="key-row">
-            <div class="key-row-label">
-              <span class="key-platform-icon">⚡</span>
-              <div>
-                <div class="key-platform-name">Claude Sonnet</div>
-                <a href="https://console.anthropic.com" target="_blank" class="key-link">console.anthropic.com →</a>
-              </div>
-            </div>
-            <input type="password" class="settings-input key-input" id="key-claude" placeholder="sk-ant-...">
           </div>
 
           <button class="save-btn" id="saveKeysBtn" onclick="saveAllKeys()" style="margin-top:16px;width:100%;background:var(--accent-trans);">
@@ -497,6 +463,13 @@
   opacity:0;pointer-events:none;white-space:nowrap;
 "></div>
 
-<script src="script/app.js?v=7"></script>
+<!-- MODULAR JAVASCRIPT MODULES -->
+<script src="script/config.js?v=1"></script>
+<script src="script/supabase.js?v=1"></script>
+<script src="script/ai-service.js?v=1"></script>
+<script src="script/vocabulary.js?v=1"></script>
+<script src="script/flashcard.js?v=1"></script>
+<script src="script/dictionary.js?v=1"></script>
+<script src="script/app.js?v=1"></script>
 </body>
 </html>
